@@ -13,6 +13,9 @@ import { AlertBanner } from "../components/AlertBanner";
 import { KpiCards } from "../components/KpiCards";
 import { Controls } from "../components/Controls";
 import { SourceTabs } from "../components/SourceTabs";
+import { UploadDropzone } from "../components/UploadDropzone";
+import { WebcamPanel } from "../components/WebcamPanel";
+import { DemoGallery } from "../components/DemoGallery";
 import { SettingsSidebar } from "../components/SettingsSidebar";
 import { EventLog } from "../components/EventLog";
 
@@ -23,6 +26,7 @@ import {
   ListFilter,
   Camera,
   CheckCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 export const FocusView: React.FC = () => {
@@ -36,6 +40,7 @@ export const FocusView: React.FC = () => {
     settings,
     isMock,
     telemetry,
+    error,
     setStatus,
     setSessionId,
     setTelemetry,
@@ -102,6 +107,11 @@ export const FocusView: React.FC = () => {
   const startRealSession = useCallback(async () => {
     try {
       if (source === "demos") return;
+      if (source === "upload" && !uploadedFile) {
+        setError("Please choose or drag & drop a video file first (.mp4, .avi, .mov, .mkv).");
+        setStatus("idle");
+        return;
+      }
       setStatus("connecting");
       setError(null);
       const res = await api.createSession(source as any, settings, uploadedFile || undefined, cameraId);
@@ -117,6 +127,10 @@ export const FocusView: React.FC = () => {
         onStatus: (wsStatus) => {
           if (wsStatus === "connected") setStatus("running");
           else if (wsStatus === "disconnected") setStatus("finished");
+          else if (wsStatus === "error") {
+            setError("Stream connection failed. Server might be busy.");
+            setStatus("idle");
+          }
         },
       });
 
@@ -124,6 +138,7 @@ export const FocusView: React.FC = () => {
       streamWs.connect();
     } catch (err: any) {
       setError(err.message || "Failed to start session");
+      setStatus("idle");
     }
   }, [source, settings, uploadedFile, cameraId, telemetry, setStatus, setError, setSessionId, setTelemetry, handleFrameArrived]);
 
@@ -337,6 +352,39 @@ export const FocusView: React.FC = () => {
               onResume={() => wsRef.current?.resume()}
             />
           </div>
+
+          {/* Active Error Banner */}
+          {error && (
+            <div className="p-3 bg-rose-950/80 border border-rose-700 text-rose-200 text-xs rounded-xl flex items-center justify-between shadow-lg animate-fade-in">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-rose-400 hover:text-white text-xs font-semibold px-2 py-0.5 rounded bg-rose-900/50 hover:bg-rose-900"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Source Specific Configuration Area */}
+          {source === "upload" && (
+            <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl">
+              <UploadDropzone />
+            </div>
+          )}
+          {source === "webcam" && (
+            <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl">
+              <WebcamPanel />
+            </div>
+          )}
+          {source === "demos" && (
+            <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl">
+              <DemoGallery />
+            </div>
+          )}
         </div>
 
         {/* Right: Side Panel Tabs */}

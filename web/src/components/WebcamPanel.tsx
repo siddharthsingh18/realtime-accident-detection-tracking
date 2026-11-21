@@ -81,7 +81,7 @@ export const WebcamPanel: React.FC<Props> = () => {
     }
 
     const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = import.meta.env.VITE_WS_URL || `${wsProto}//${window.location.hostname}:8000`;
+    const host = import.meta.env.VITE_WS_URL || `${wsProto}//${window.location.hostname}:8080`;
     const wsUrl = `${host}/api/sessions/${sessionId}/webcam`;
 
     const ws = new WebSocket(wsUrl);

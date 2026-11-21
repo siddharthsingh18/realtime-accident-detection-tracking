@@ -122,7 +122,17 @@ class SessionManager:
         temp_file_path: Optional[str] = None,
         settings: Optional[PipelineSettings] = None,
     ) -> SessionState:
-        # Enforce maximum concurrent session cap
+        # If there is already a session for this camera_id, clean it up and replace it
+        existing_for_cam = [s for s in list(self.sessions.values()) if s.camera_id == camera_id]
+        for old_s in existing_for_cam:
+            self.remove_session(old_s.session_id)
+
+        # Clean up any sessions that have finished or stopped
+        finished_ids = [sid for sid, s in list(self.sessions.items()) if s.is_stopped or s.status == "finished"]
+        for fid in finished_ids:
+            self.remove_session(fid)
+
+        # Enforce maximum concurrent session cap for active sessions
         if len(self.sessions) >= MAX_CONCURRENT_SESSIONS:
             logger.warning(f"Session request rejected: max {MAX_CONCURRENT_SESSIONS} concurrent sessions reached.")
             raise HTTPException(

@@ -24,7 +24,7 @@ export class StreamWebSocket {
     }
   ) {
     const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = import.meta.env.VITE_WS_URL || `${wsProto}//${window.location.hostname}:8000`;
+    const host = import.meta.env.VITE_WS_URL || `${wsProto}//${window.location.hostname}:8080`;
     this.url = `${host}/api/sessions/${sessionId}/stream`;
     this.onTelemetry = callbacks.onTelemetry;
     this.onFrame = callbacks.onFrame;

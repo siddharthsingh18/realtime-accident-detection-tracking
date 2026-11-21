@@ -27,7 +27,7 @@ const getApiBase = () => {
   if (typeof window !== "undefined" && window.location?.origin && window.location.origin !== "null") {
     return window.location.origin;
   }
-  return "http://localhost:8000";
+  return "http://localhost:8080";
 };
 
 const API_BASE = getApiBase();

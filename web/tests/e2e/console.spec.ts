@@ -149,4 +149,37 @@ test.describe("Incident Command Console E2E", () => {
     await expect(page.getByText(/CCTV Camera Inventory & Ignore Regions/i)).toBeVisible();
     await expect(page.getByText(/Stationary CCTV Network Placement Map/i)).toBeVisible();
   });
+
+  test("focus view displays upload dropzone and validates file selection before starting", async ({ page }) => {
+    await page.goto("/camera/cam_01");
+
+    // Click Upload Video tab
+    const uploadTab = page.getByRole("button", { name: /Upload Video/i });
+    await expect(uploadTab).toBeVisible();
+    await uploadTab.click();
+
+    // Verify dropzone is rendered
+    await expect(page.getByText(/Click to upload or drag & drop traffic video/i)).toBeVisible();
+    await expect(page.getByText(/Supports MP4, AVI, MOV, MKV/i)).toBeVisible();
+
+    // Click Start Stream without selecting a file -> should display friendly validation error
+    const startBtn = page.getByRole("button", { name: /Start Stream/i });
+    await startBtn.click();
+
+    await expect(
+      page.getByText(/Please choose or drag & drop a video file first/i)
+    ).toBeVisible();
+
+    // Now select a file using the file input
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles({
+      name: "test_traffic.mp4",
+      mimeType: "video/mp4",
+      buffer: Buffer.from("fake-video-bytes"),
+    });
+
+    // Verify the uploaded file card appears
+    await expect(page.getByText("test_traffic.mp4")).toBeVisible();
+    await expect(page.getByText("0.00 MB")).toBeVisible();
+  });
 });
