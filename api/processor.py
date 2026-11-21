@@ -1,9 +1,11 @@
 import time
 import logging
+import threading
 from typing import Tuple, List, Dict, Any, Set, Optional
 from datetime import datetime, timezone
 import cv2
 import numpy as np
+from ultralytics import YOLO
 
 from src import (
     DualDetector,
@@ -29,6 +31,7 @@ from api import db
 logger = logging.getLogger("TrafficMonitor.API.Processor")
 
 _detector_cache: Dict[str, DualDetector] = {}
+_inference_lock = threading.Lock()
 
 
 def get_shared_detector(device: Optional[str] = None) -> DualDetector:
@@ -81,8 +84,11 @@ class FrameProcessor:
         self.detector.accident_conf = self.settings.accident_conf
         self.detector.vehicle_conf = self.settings.vehicle_conf
 
+        # Each camera session gets a dedicated YOLO vehicle model to ensure BoT-SORT
+        # tracking state and optical flow pyramids remain fully isolated across concurrent cameras.
+        vehicle_model_inst = YOLO("models/yolo11n.pt")
         self.tracker = VehicleTracker(
-            vehicle_model=self.detector.vehicle_model,
+            vehicle_model=vehicle_model_inst,
             tracker_type="botsort.yaml",
             conf=self.settings.vehicle_conf,
             iou=0.50,
@@ -161,17 +167,18 @@ class FrameProcessor:
         effective_fps = current_fps or self.fps
         h, w = frame.shape[:2]
 
-        # 1. Track Vehicles with BoT-SORT
-        t_v0 = time.time()
-        tracked_vehicles = self.tracker.update(frame)
-        for v in tracked_vehicles:
-            self.unique_vehicle_ids.add(v.track_id)
-        t_vehicle = (time.time() - t_v0) * 1000
+        # 1. Track Vehicles with BoT-SORT & 2. Detect Accidents with Custom YOLO Detector
+        # Guarded by _inference_lock to ensure thread-safe forward passes on CPU across concurrent streams
+        with _inference_lock:
+            t_v0 = time.time()
+            tracked_vehicles = self.tracker.update(frame)
+            for v in tracked_vehicles:
+                self.unique_vehicle_ids.add(v.track_id)
+            t_vehicle = (time.time() - t_v0) * 1000
 
-        # 2. Detect Accidents with Custom YOLO Detector
-        t_a0 = time.time()
-        raw_accidents = self.detector.detect_accidents(frame)
-        t_accident = (time.time() - t_a0) * 1000
+            t_a0 = time.time()
+            raw_accidents = self.detector.detect_accidents(frame)
+            t_accident = (time.time() - t_a0) * 1000
 
         # 3. Collision Heuristic + Ignore Region Filter + Confirmation Logic
         t_l0 = time.time()
