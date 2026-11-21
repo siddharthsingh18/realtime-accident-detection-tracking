@@ -64,11 +64,30 @@ flowchart TD
 road-accident-detection/
 ├── config.yaml          # Master configuration file (models, thresholds, tracker, state machine)
 ├── main.py              # CLI entry point to run inference on videos or webcam
-├── app.py               # Streamlit web dashboard on localhost
+├── app.py               # Streamlit web dashboard fallback (legacy)
 ├── requirements.txt     # Python dependencies
 ├── README.md            # Comprehensive project documentation
 ├── LICENSE              # MIT License
 ├── .gitignore           # Ignored temporary files & model checkpoints
+│
+├── api/                 # FastAPI REST & WebSocket backend adapter
+│   ├── main.py          # FastAPI application entry point, CORS, WebSockets
+│   ├── models.py        # Pydantic v2 schemas (telemetry, settings, health, demos)
+│   ├── processor.py     # Reusable FrameProcessor extracting pipeline from main.py
+│   ├── session_manager.py # Session lifecycle, cleanup, and drop counters
+│   ├── range_response.py # HTTP 206 Partial Content / Range header streaming
+│   └── routes_demos.py  # H.264 demo routes & metadata inspection
+│
+├── web/                 # Modern React 18 + TypeScript + Vite frontend
+│   ├── src/
+│   │   ├── api/         # API client & WebSocket protocol manager
+│   │   ├── components/  # AlertBanner, KpiCards, VideoStage, Controls, SettingsSidebar, EventLog...
+│   │   ├── mock/        # Recorded mock telemetry sequence & standalone mock runner
+│   │   ├── pages/       # Dashboard main layout
+│   │   ├── store/       # Zustand session state & localStorage syncing
+│   │   └── test/        # Vitest + RTL frontend test suite
+│   ├── package.json
+│   └── vite.config.ts
 │
 ├── models/              # Model weights directory
 │   ├── accident_yolo11s.pt # Custom accident weights (YOLOv8s architecture, see Model Details)
@@ -81,7 +100,7 @@ road-accident-detection/
 │   └── sample_traffic_2.mp4 # Multi-car incident video (Scenario 2, 720p HD @ 30 FPS)
 │
 ├── outputs/             # Output directory for generated annotated videos
-│   └── .gitkeep
+│   └── h264/            # Re-encoded H.264 demos with HTTP range support
 │
 ├── src/                 # Core modular source code
 │   ├── __init__.py      # Clean public package API
@@ -90,9 +109,9 @@ road-accident-detection/
 │   ├── accident_logic.py# State machine, kinematic collision gating, IoU, suppression
 │   └── visualizer.py    # OpenCV annotation overlays, alert banners & HUD dashboard
 │
-└── tests/               # Unit test suite
-    ├── __init__.py
-    └── test_accident_logic.py # 19 unit tests for state machine, kinematics, IoU, timeouts
+└── tests/               # Automated unit & integration test suites
+    ├── test_accident_logic.py # 19 tests for state machine, kinematics, IoU, timeouts
+    └── test_api.py            # 8 tests for FastAPI routes, sessions, schemas, and range streaming
 ```
 
 ---
@@ -247,12 +266,59 @@ visualization:
 
 ---
 
-## Running Tests
+## Running the Application
 
-Automated unit tests covering IoU, containment, state machine transitions, kinematic gating, timeouts, and suppression:
+### 1. Modern React 18 + FastAPI Dashboard (Recommended)
+
+Start the FastAPI backend service:
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Start the Vite React frontend:
+```bash
+cd web
+npm install
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+To run the frontend in **standalone mock mode** (no backend or Python installation required):
+```bash
+cd web
+npm run dev:mock
+```
+
+### 2. Streamlit Dashboard (Fallback)
 
 ```bash
+streamlit run app.py
+```
+
+### 3. CLI Batch Processing
+
+```bash
+python main.py --source assets/sample_traffic.mp4 --device auto
+```
+
+---
+
+## Running Tests & Verification
+
+### Python Backend Unit & API Tests (27 tests)
+```bash
 pytest tests/ -v
+```
+
+### React Frontend Vitest Suite (17 tests)
+```bash
+cd web && npm test
+```
+
+### TypeScript Verification & Production Build
+```bash
+cd web && npm run typecheck
+cd web && npm run build
 ```
 
 ---

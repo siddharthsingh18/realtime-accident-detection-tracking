@@ -44,6 +44,8 @@ runs/
 output/
 outputs/*
 !outputs/.gitkeep
+!outputs/h264/
+!outputs/h264/*.mp4
 
 # IDE / OS
 .vscode/
