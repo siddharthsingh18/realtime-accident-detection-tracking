@@ -7,9 +7,9 @@ device: "auto"
 
 # YOLO Models Configuration
 models:
-  # Custom-trained YOLO11s for Road Accident Detection
+  # Custom-trained model for Road Accident Detection (YOLOv8s architecture)
   accident:
-    weights: "models/accident_yolo11s.pt"  # Path to custom-trained YOLO11s weights (falls back to yolo11s.pt)
+    weights: "models/accident_yolo11s.pt"  # Path to accident weights (falls back to yolo11s.pt)
     conf_threshold: 0.40                  # Minimum confidence cutoff for accident detection
     iou_threshold: 0.45                   # Non-Maximum Suppression (NMS) IoU threshold
 
@@ -26,18 +26,25 @@ tracker:
   type: "botsort.yaml"                    # BoT-SORT configuration file (built into Ultralytics)
   max_history: 30                         # Frames of trajectory centroid history to maintain
 
-# Spatial Filtering & Accident Logic
+# Spatial Filtering & Confirmation State Machine Logic
 logic:
+  persistence_seconds: 0.50               # Seconds to hold confirmed accident box during temporary loss (~15 frames @ 30fps)
+  confirm_seconds: 0.17                   # Seconds of detection required for confirmation (~5 frames @ 30fps)
+  tentative_grace_seconds: 0.07           # Seconds before dropping an unconfirmed tentative zone (~2 frames @ 30fps)
+  confirm_hits: 5                         # Minimum hits in window to confirm a zone (ACTIVE)
+  confirm_window: 8                       # Window size (frames) evaluated for confirmation hits
+  tentative_grace: 2                      # Lost frames before discarding a TENTATIVE zone
+  persistence_frames: 15                  # Backward compatibility fallback for persistence frame count
   containment_threshold: 0.50             # Suppression triggers if vehicle area is >= 50% inside accident zone
   iou_match_threshold: 0.30               # IoU threshold for matching accident detections across frames
-  persistence_frames: 15                  # Frames to maintain accident bounding box during temporary loss (~0.5s at 30fps)
   smoothing_alpha: 0.70                   # Exponential moving average factor for bounding box coordinates
   suppress_vehicle_labels: true           # Suppress normal vehicle labels inside confirmed accident regions
+  use_collision_heuristic: true           # Enable/disable kinematic vehicle-vehicle collision heuristic
 
 # Visualization & Output Settings
 visualization:
   show_tracking_ids: true                 # Render BoT-SORT unique IDs (#1, #2, etc.)
   show_confidence: true                   # Render confidence scores
-  show_alert_banner: true                 # Displays prominent top emergency alert banner on accident
+  show_alert_banner: true                 # Displays prominent top emergency alert banner on confirmed accident
   show_hud_stats: true                    # Displays FPS and tracking statistics overlay
   line_thickness: 2                       # Bounding box stroke width

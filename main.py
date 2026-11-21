@@ -3,12 +3,13 @@
 Accident Detection & Vehicle Tracking System.
 
 Main CLI pipeline integrating:
-- Custom-trained YOLO11s for accident detection
+- Custom-trained YOLO model for accident detection (YOLOv8s architecture)
 - Pretrained YOLO11n for vehicle detection
-- BoT-SORT multi-object tracking with unique IDs
-- Confidence filtering, NMS, IoU, and containment-based spatial matching
-- Accident bounding box persistence during temporary detection loss
-- Normal vehicle label suppression inside confirmed accident regions
+- BoT-SORT multi-object tracking with unique persistent IDs
+- Multi-frame confirmation state machine (TENTATIVE -> ACTIVE -> MAINTAINED -> removed)
+- Gated kinematic vehicle-collision detection (deceleration/convergence, anti-queue filter)
+- Time-based persistence and confirmation windows
+- Visual suppression of normal labels inside confirmed accident regions
 - Real-time emergency alert display and annotated video production
 """
 
@@ -25,8 +26,11 @@ from src import (
     DualDetector,
     VehicleTracker,
     AccidentPersistenceManager,
+    VehicleCollisionDetector,
     suppress_vehicles_in_accidents,
     detect_vehicle_collisions,
+    resolve_fps,
+    seconds_to_frames,
     Visualizer,
 )
 
@@ -50,7 +54,7 @@ def load_config(config_path: str = "config.yaml") -> dict:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Road Accident Detection & Vehicle Tracking System (YOLO11s + YOLO11n + BoT-SORT)"
+        description="Road Accident Detection & Vehicle Tracking System (YOLO + BoT-SORT)"
     )
     parser.add_argument(
         "--source",
@@ -74,7 +78,7 @@ def parse_args():
         "--accident-model",
         type=str,
         default=None,
-        help="Override path to custom YOLO11s accident model weights",
+        help="Override path to custom accident model weights",
     )
     parser.add_argument(
         "--vehicle-model",
@@ -93,6 +97,61 @@ def parse_args():
         type=float,
         default=None,
         help="Override vehicle detection confidence threshold",
+    )
+    parser.add_argument(
+        "--persistence-seconds",
+        type=float,
+        default=None,
+        help="Seconds to hold accident box across temporary loss (e.g. 0.50s)",
+    )
+    parser.add_argument(
+        "--confirm-seconds",
+        type=float,
+        default=None,
+        help="Seconds of detection required for confirmation (e.g. 0.17s)",
+    )
+    parser.add_argument(
+        "--tentative-grace-seconds",
+        type=float,
+        default=None,
+        help="Seconds before dropping unconfirmed tentative zone (e.g. 0.07s)",
+    )
+    parser.add_argument(
+        "--persistence-frames",
+        type=int,
+        default=None,
+        help="Fallback frame count to hold accident box (backward compatibility)",
+    )
+    parser.add_argument(
+        "--confirm-hits",
+        type=int,
+        default=None,
+        help="Fallback hit count required to confirm an accident zone",
+    )
+    parser.add_argument(
+        "--confirm-window",
+        type=int,
+        default=None,
+        help="Evaluation window size in frames for confirmation hits",
+    )
+    parser.add_argument(
+        "--tentative-grace",
+        type=int,
+        default=None,
+        help="Fallback frame grace period before dropping tentative zone",
+    )
+    parser.add_argument(
+        "--use-collision-heuristic",
+        dest="use_collision_heuristic",
+        action="store_true",
+        default=None,
+        help="Enable kinematic vehicle-vehicle collision heuristic",
+    )
+    parser.add_argument(
+        "--no-collision-heuristic",
+        dest="use_collision_heuristic",
+        action="store_false",
+        help="Disable kinematic vehicle-vehicle collision heuristic",
     )
     parser.add_argument(
         "--device",
@@ -117,7 +176,6 @@ def main():
     args = parse_args()
     cfg = load_config(args.config)
 
-    # Resolve settings (CLI arguments take precedence over config.yaml)
     device_cfg = args.device or cfg.get("device", "auto")
     device = None if device_cfg == "auto" else device_cfg
 
@@ -140,9 +198,14 @@ def main():
     l_cfg = cfg.get("logic", {})
     containment_threshold = l_cfg.get("containment_threshold", 0.50)
     iou_match_threshold = l_cfg.get("iou_match_threshold", 0.30)
-    persistence_frames = l_cfg.get("persistence_frames", 15)
     smoothing_alpha = l_cfg.get("smoothing_alpha", 0.70)
     suppress_labels = l_cfg.get("suppress_vehicle_labels", True)
+
+    use_collision_heuristic = (
+        args.use_collision_heuristic
+        if args.use_collision_heuristic is not None
+        else l_cfg.get("use_collision_heuristic", True)
+    )
 
     v_cfg = cfg.get("visualization", {})
     visualizer = Visualizer(
@@ -154,12 +217,101 @@ def main():
         line_thickness=v_cfg.get("line_thickness", 2),
     )
 
+    # Open video source (auto-resolving relative paths inside assets/ if needed)
+    if args.source.isdigit():
+        source = int(args.source)
+    else:
+        source = args.source
+        if not os.path.exists(source):
+            asset_candidate = os.path.join("assets", os.path.basename(source))
+            if os.path.exists(asset_candidate):
+                logger.info(f"Resolved video source '{args.source}' to '{asset_candidate}'")
+                source = asset_candidate
+
+    cap = cv2.VideoCapture(source)
+    if not cap.isOpened() and (args.source == "0" or args.source == 0):
+        sample_path = os.path.join("assets", "sample_traffic.mp4")
+        if os.path.exists(sample_path):
+            logger.warning(
+                f"Webcam index 0 could not be opened. Automatically falling back to sample video: '{sample_path}'"
+            )
+            source = sample_path
+            cap = cv2.VideoCapture(source)
+
+    if not cap.isOpened():
+        logger.error(f"Failed to open video source: {args.source}")
+        sys.exit(1)
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Validate and resolve FPS
+    raw_fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = resolve_fps(raw_fps)
+
+    # Resolve time-based timeouts to frame counts
+    persistence_seconds = (
+        args.persistence_seconds
+        if args.persistence_seconds is not None
+        else l_cfg.get("persistence_seconds", 0.50)
+    )
+    persistence_frames = (
+        args.persistence_frames
+        if args.persistence_frames is not None
+        else (
+            seconds_to_frames(persistence_seconds, fps)
+            if persistence_seconds is not None
+            else l_cfg.get("persistence_frames", 15)
+        )
+    )
+
+    confirm_seconds = (
+        args.confirm_seconds
+        if args.confirm_seconds is not None
+        else l_cfg.get("confirm_seconds", 0.17)
+    )
+    confirm_hits = (
+        args.confirm_hits
+        if args.confirm_hits is not None
+        else (
+            seconds_to_frames(confirm_seconds, fps)
+            if confirm_seconds is not None
+            else l_cfg.get("confirm_hits", 5)
+        )
+    )
+
+    tentative_grace_seconds = (
+        args.tentative_grace_seconds
+        if args.tentative_grace_seconds is not None
+        else l_cfg.get("tentative_grace_seconds", 0.07)
+    )
+    tentative_grace = (
+        args.tentative_grace
+        if args.tentative_grace is not None
+        else (
+            seconds_to_frames(tentative_grace_seconds, fps)
+            if tentative_grace_seconds is not None
+            else l_cfg.get("tentative_grace", 2)
+        )
+    )
+
+    confirm_window = (
+        args.confirm_window
+        if args.confirm_window is not None
+        else l_cfg.get("confirm_window", max(confirm_hits + 3, 8))
+    )
+
     logger.info("=" * 60)
     logger.info("Initializing Road Accident Detection & Vehicle Tracking System")
     logger.info(f"Accident Model: {accident_weights}")
     logger.info(f"Vehicle Model:  {vehicle_weights}")
     logger.info(f"Tracker:        BoT-SORT ({tracker_type})")
-    logger.info(f"Spatial Logic:  Containment Thresh={containment_threshold}, Persistence={persistence_frames} frames")
+    logger.info(
+        f"Timeouts @ {fps:.1f} FPS: persistence={persistence_frames}f ({persistence_seconds:.2f}s), "
+        f"confirm_hits={confirm_hits}f ({confirm_seconds:.2f}s), tentative_grace={tentative_grace}f ({tentative_grace_seconds:.2f}s), "
+        f"confirm_window={confirm_window}f, collision_heuristic={use_collision_heuristic}"
+    )
     logger.info("=" * 60)
 
     # Initialize Dual Detector
@@ -185,43 +337,28 @@ def main():
         max_history=max_history,
     )
 
-    # Initialize Accident Persistence Manager
+    # Distinct confirmed zones tracking
+    distinct_confirmed_zones = {}
+    alerts_fired_count = 0
+    alert_active_prev = False
+
+    def on_zone_confirmed(zone):
+        nonlocal alerts_fired_count
+        logger.info(f"🔔 [ON_CONFIRM] Accident zone #{zone.zone_id} confirmed ACTIVE at conf={zone.conf:.2f}!")
+
+    # Initialize Accident Persistence Manager with confirmation state machine
     persistence_mgr = AccidentPersistenceManager(
         persistence_frames=persistence_frames,
         iou_match_threshold=iou_match_threshold,
         smoothing_alpha=smoothing_alpha,
+        confirm_hits=confirm_hits,
+        confirm_window=confirm_window,
+        tentative_grace=tentative_grace,
+        on_confirm=on_zone_confirmed,
     )
 
-    # Open video source (auto-resolving relative paths inside assets/ if needed)
-    if args.source.isdigit():
-        source = int(args.source)
-    else:
-        source = args.source
-        if not os.path.exists(source):
-            asset_candidate = os.path.join("assets", os.path.basename(source))
-            if os.path.exists(asset_candidate):
-                logger.info(f"Resolved video source '{args.source}' to '{asset_candidate}'")
-                source = asset_candidate
-
-    cap = cv2.VideoCapture(source)
-    if not cap.isOpened() and (args.source == "0" or args.source == 0):
-        # Graceful fallback if camera 0 is not available
-        sample_path = os.path.join("assets", "sample_traffic.mp4")
-        if os.path.exists(sample_path):
-            logger.warning(
-                f"Webcam index 0 could not be opened. Automatically falling back to sample video: '{sample_path}'"
-            )
-            source = sample_path
-            cap = cv2.VideoCapture(source)
-
-    if not cap.isOpened():
-        logger.error(f"Failed to open video source: {args.source}")
-        sys.exit(1)
-
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # Initialize Kinematic Collision Detector
+    collision_detector = VehicleCollisionDetector(fps=fps)
 
     # Initialize VideoWriter if saving output
     writer = None
@@ -238,7 +375,6 @@ def main():
     accident_events_total = 0
     unique_tracked_ids = set()
 
-    # Progress bar for video files (or continuous counter for webcam)
     pbar = tqdm(total=total_frames if total_frames > 0 else None, desc="Processing Frames", unit="frame")
 
     try:
@@ -257,41 +393,59 @@ def main():
             # 2. Detect Accidents with Custom YOLO Detector
             raw_accidents = detector.detect_accidents(frame)
 
-            # 3. Detect Vehicle-Vehicle Collisions from tracking
-            collisions = detect_vehicle_collisions(tracked_vehicles)
+            # 3. Detect Vehicle-Vehicle Collisions from tracking (if enabled)
+            if use_collision_heuristic:
+                collisions = collision_detector.detect(tracked_vehicles, fps=fps)
+            else:
+                collisions = []
             all_accident_candidates = raw_accidents + collisions
 
-            # 4. Maintain Accident Zones across temporary loss
-            active_accidents = persistence_mgr.update(all_accident_candidates)
+            # 4. State Machine Update -> returns ONLY confirmed zones (ACTIVE / MAINTAINED)
+            confirmed_accidents = persistence_mgr.update(all_accident_candidates)
 
-            # 5. Containment Matching & Suppression of normal labels inside accident zones
-            if active_accidents:
-                accident_events_total += len(active_accidents)
-                tracked_vehicles, active_accidents = suppress_vehicles_in_accidents(
+            # Bookkeeping distinct confirmed zones and frame ranges
+            for cz in confirmed_accidents:
+                if cz.zone_id not in distinct_confirmed_zones:
+                    distinct_confirmed_zones[cz.zone_id] = {
+                        "first_frame": frame_idx,
+                        "last_frame": frame_idx,
+                        "count": 1,
+                    }
+                else:
+                    distinct_confirmed_zones[cz.zone_id]["last_frame"] = frame_idx
+                    distinct_confirmed_zones[cz.zone_id]["count"] += 1
+
+            # Count alert state transitions (when alert banner turns ON)
+            is_alerting = len(confirmed_accidents) > 0
+            if is_alerting and not alert_active_prev:
+                alerts_fired_count += 1
+            alert_active_prev = is_alerting
+
+            # 5. Containment Matching & Suppression of normal labels inside confirmed accident zones
+            if confirmed_accidents:
+                accident_events_total += len(confirmed_accidents)
+                tracked_vehicles, confirmed_accidents = suppress_vehicles_in_accidents(
                     vehicles=tracked_vehicles,
-                    accident_zones=active_accidents,
+                    accident_zones=confirmed_accidents,
                     containment_threshold=containment_threshold,
                     iou_threshold=iou_match_threshold,
                 )
 
-            # Measure processing FPS
             dt = time.time() - t0
             proc_fps = 1.0 / dt if dt > 0 else fps
 
-            # 5. Render Annotations, Alerts, and HUD
+            # 6. Render Annotations, Alerts, and HUD (using confirmed zones only)
             annotated_frame = visualizer.render(
                 frame=frame,
                 vehicles=tracked_vehicles,
-                accident_zones=active_accidents,
+                accident_zones=confirmed_accidents,
                 fps=proc_fps,
                 frame_idx=frame_idx,
             )
 
-            # Write frame to video
             if writer:
                 writer.write(annotated_frame)
 
-            # Live preview if requested
             if args.show:
                 cv2.imshow("Accident Detection & Vehicle Tracking System", annotated_frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -316,13 +470,17 @@ def main():
 
     logger.info("=" * 60)
     logger.info("Processing Summary:")
-    logger.info(f"Total Frames Processed: {frame_idx}")
-    logger.info(f"Total Elapsed Time:      {elapsed:.2f} s")
-    logger.info(f"Average Inference Speed: {avg_fps:.2f} FPS")
-    logger.info(f"Unique Vehicles Tracked: {len(unique_tracked_ids)}")
-    logger.info(f"Active Accident Frames:  {accident_events_total}")
+    logger.info(f"Total Frames Processed:   {frame_idx}")
+    logger.info(f"Total Elapsed Time:        {elapsed:.2f} s")
+    logger.info(f"Average Inference Speed:   {avg_fps:.2f} FPS")
+    logger.info(f"Unique Vehicles Tracked:   {len(unique_tracked_ids)}")
+    logger.info(f"Alert State Activations:   {alerts_fired_count}")
+    logger.info(f"Active Confirmed Frames:   {accident_events_total}")
+    logger.info(f"Distinct Confirmed Zones:  {len(distinct_confirmed_zones)}")
+    for zid, zinfo in distinct_confirmed_zones.items():
+        logger.info(f"  - Zone #{zid}: frames {zinfo['first_frame']} to {zinfo['last_frame']} ({zinfo['count']} frames)")
     if writer:
-        logger.info(f"Annotated Video Output:  {args.output}")
+        logger.info(f"Annotated Video Output:    {args.output}")
     logger.info("=" * 60)
 
 
