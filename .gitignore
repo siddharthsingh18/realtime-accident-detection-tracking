@@ -58,3 +58,13 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Web & Playwright
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+
+# SQLite & Incident Data
+data/*.db
+data/incidents/

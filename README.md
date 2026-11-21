@@ -114,9 +114,34 @@ road-accident-detection/
     └── test_api.py            # 8 tests for FastAPI routes, sessions, schemas, and range streaming
 ```
 
----
+## Incident Command Console & Operator Experience
 
-## Model Details & Architecture Notes
+<p align="center">
+  <img src="docs/screenshots/live_wall.png" alt="Incident Command Console - Live Wall" width="750"/>
+</p>
+
+The system features an operator-grade **Incident Command Console** designed for keyboard-first CCTV surveillance, rapid alert verification, and honest evidence audit trails:
+
+- **Live Wall (`/`)**: 1, 2, or 4-tile grid supporting multi-camera operations. Includes "Alerts First" dynamic sorting that floats cameras with confirmed hazards to the top, real-time status indicators, and one-click focus.
+- **Focus View (`/camera/:id`)**: Flagship console with sub-frame client vector layer (rendering vehicle motion trails, ghost containment outlines, speed vectors, and hazard brackets via `requestAnimationFrame`), hover inspector popover, and a **60-second in-memory timeline scrubber** capped at 60 MB RAM with quick return to LIVE.
+- **Incident Review Queue (`/incidents`)**: Virtualized incident audit queue with single-key operator verdicts (`T` for True Accident, `F` for False Alarm, `U` for Unsure), J/K keyboard navigation, multi-field filtering, 10-second undo window, and CSV export.
+- **Incident Detail View (`/incidents/:id`)**: Synchronized H.264 clip player with custom frame-stepping, 0.25x–2.0x playback rates, loop event window (5s pre-roll to 5s post-roll), evidence ZIP package downloader, active parameters record, and immutable audit history.
+- **Traffic Analytics (`/analytics`)**: Hourly and daily volume histograms, origin breakdown, and operator-reviewed verdict outcomes with strict honesty caveats.
+- **A/B Pipeline Comparison (`/compare`)**: Side-by-side simulation runner testing two parameter profiles against identical video footage.
+- **CCTV Network & ROI Editor (`/cameras`)**: Coordinate grid placement map and interactive ignore-region polygon editor to discard nuisance detections (parking lots, billboards) server-side.
+- **Power Tools**: Global Command Palette (`⌘K`), Keyboard Help Map (`?`), WebAudio synthesized alarm chimes, and dual-language UI (English & Hindi).
+
+### Console Screenshot Gallery
+
+| Live Surveillance Wall | Single Camera Focus View |
+|:---:|:---:|
+| ![Live Wall](docs/screenshots/live_wall.png) | ![Focus View](docs/screenshots/focus_view.png) |
+| **Incident Review Queue** | **Incident Detail & Evidence Player** |
+| ![Review Queue](docs/screenshots/review_queue.png) | ![Incident Detail](docs/screenshots/incident_detail.png) |
+| **Operator Verdict Analytics** | **Ignore-Region Polygon Editor** |
+| ![Analytics](docs/screenshots/analytics_view.png) | ![Cameras](docs/screenshots/cameras_view.png) |
+
+---
 
 - **Accident Detector (`models/accident_yolo11s.pt`)**:
   - *Checkpoint Architecture*: Checkpoint metadata confirms this model uses the **YOLOv8s** architecture (`yolov8s.yaml`, 129 layers, 11,135,987 parameters, trained April 2023 for 25 epochs), despite the file name `accident_yolo11s.pt`. It is recommended to rename this checkpoint to `accident_yolov8s.pt` or fine-tune a genuine YOLO11s model in future training runs (the existing filename is preserved for backward compatibility).
@@ -305,19 +330,30 @@ python main.py --source assets/sample_traffic.mp4 --device auto
 
 ## Running Tests & Verification
 
-### Python Backend Unit & API Tests (27 tests)
+### Python Backend Unit & API Tests (34 tests)
 ```bash
 pytest tests/ -v
 ```
 
-### React Frontend Vitest Suite (17 tests)
+### React Frontend Vitest Suite (28 tests)
 ```bash
 cd web && npm test
 ```
 
-### TypeScript Verification & Production Build
+### Playwright End-to-End Tests (7 tests)
+```bash
+cd web && npm run test:e2e
+```
+
+### High-Density Synthetic Stress Test (4 Feeds @ 15 FPS)
+```bash
+cd web && npm run perf
+```
+
+### TypeScript Verification, Linting & Production Build
 ```bash
 cd web && npm run typecheck
+cd web && npm run lint
 cd web && npm run build
 ```
 

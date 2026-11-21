@@ -242,7 +242,7 @@ export const SettingsSidebar: React.FC<Props> = ({
               </label>
               <select
                 value={settings.device}
-                onChange={(e) => handleSliderChange("device", e.target.value)}
+                onChange={(e) => handleSliderChange("device", e.target.value as any)}
                 disabled={isRunning}
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
               >

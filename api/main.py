@@ -17,9 +17,11 @@ from fastapi import (
     HTTPException,
     status,
     Request,
+    Query,
+    Depends,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import cv2
 import numpy as np
 
@@ -29,11 +31,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import yaml
 from src import resolve_fps
 
+
 def load_yaml_config(config_path: str = "config.yaml") -> dict:
     if not os.path.exists(config_path):
         return {}
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
+
+
 from api.models import (
     HealthResponse,
     PipelineSettings,
@@ -42,10 +47,16 @@ from api.models import (
     SessionCreateRequest,
     SessionCreateResponse,
     TelemetryMessage,
+    SystemStatusResponse,
 )
 from api.processor import FrameProcessor, get_shared_detector
 from api.session_manager import session_manager
 from api.routes_demos import router as demos_router
+from api.routes_incidents import router as incidents_router
+from api.routes_cameras import router as cameras_router
+from api.routes_compare import router as compare_router
+from api.sse import alert_bus
+from api import db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,14 +65,33 @@ logging.basicConfig(
 logger = logging.getLogger("TrafficMonitor.API")
 
 # File upload limits
-MAX_UPLOAD_SIZE_BYTES = int(os.environ.get("MAX_UPLOAD_SIZE_BYTES", 500 * 1024 * 1024)) # 500 MB
+MAX_UPLOAD_SIZE_BYTES = int(os.environ.get("MAX_UPLOAD_SIZE_BYTES", 500 * 1024 * 1024))  # 500 MB
 ALLOWED_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv"}
 
+# Optional Bearer Token Authentication
+API_TOKEN = os.environ.get("API_TOKEN")
+
 app = FastAPI(
-    title="Road Accident Detection & Tracking API",
-    version="2.1.0",
-    description="High-performance FastAPI service powering real-time traffic incident detection and vehicle tracking.",
+    title="Road Accident Detection & Incident Command API",
+    version="2.2.0",
+    description="Operator-grade FastAPI service powering real-time CCTV monitoring, incident persistence, and multi-camera coordination.",
 )
+
+# Initialize database schema & default cameras
+db.init_db()
+
+# Optional Bearer Check Hook
+@app.middleware("http")
+async def optional_api_token_middleware(request: Request, call_next):
+    if API_TOKEN:
+        # Exclude public docs and health endpoints
+        if request.url.path not in ("/api/health", "/docs", "/openapi.json"):
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer ") or auth_header[7:] != API_TOKEN:
+                return JSONResponse(status_code=401, content={"detail": "Unauthorized: valid Bearer token required"})
+    response = await call_next(request)
+    return response
+
 
 # CORS configuration
 raw_cors = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000")
@@ -76,6 +106,9 @@ app.add_middleware(
 )
 
 app.include_router(demos_router)
+app.include_router(incidents_router)
+app.include_router(cameras_router)
+app.include_router(compare_router)
 
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -88,14 +121,13 @@ def get_health() -> HealthResponse:
         detector = get_shared_detector()
         acc_model = detector.accident_model
 
-        # Extract true architecture from checkpoint train_args if available
         arch = "yolov8s"
         if hasattr(acc_model, "ckpt") and isinstance(acc_model.ckpt, dict):
             train_args = acc_model.ckpt.get("train_args", {})
             if isinstance(train_args, dict):
                 arch = train_args.get("model", "yolov8s.yaml").replace(".yaml", "")
 
-        acc_classes = [acc_model.names[cid] for cid in detector.accident_class_ids]
+        acc_classes = {str(cid): acc_model.names[cid] for cid in detector.accident_class_ids}
         veh_classes = [detector.vehicle_model.names[cid] for cid in detector.vehicle_classes]
 
         models_info = {
@@ -103,7 +135,6 @@ def get_health() -> HealthResponse:
                 "file": detector.accident_weights,
                 "arch": arch,
                 "classes": acc_classes,
-                "layers": 129,
                 "parameters": 11135987,
             },
             "vehicle": {
@@ -138,6 +169,7 @@ def get_default_config() -> PipelineSettings:
         accident_conf=m_cfg.get("accident", {}).get("conf_threshold", 0.40),
         vehicle_conf=m_cfg.get("vehicle", {}).get("conf_threshold", 0.35),
         containment_threshold=l_cfg.get("containment_threshold", 0.50),
+        iou_threshold=l_cfg.get("iou_match_threshold", 0.30),
         persistence_seconds=l_cfg.get("persistence_seconds", 0.50),
         confirm_seconds=l_cfg.get("confirm_seconds", 0.17),
         tentative_grace_seconds=l_cfg.get("tentative_grace_seconds", 0.07),
@@ -156,25 +188,70 @@ def validate_config(payload: SettingsValidateRequest) -> SettingsValidateRespons
     )
 
 
+@app.get("/api/system", response_model=SystemStatusResponse)
+def get_system_status() -> SystemStatusResponse:
+    """Returns concurrent session usage, per-camera FPS, and hardware contention metrics."""
+    detector = get_shared_detector()
+    data = session_manager.get_system_status(device=str(detector.device))
+    return SystemStatusResponse(**data)
+
+
+@app.get("/api/stats")
+def get_incident_stats(
+    from_date: Optional[str] = Query(None, alias="from"),
+    to_date: Optional[str] = Query(None, alias="to"),
+    camera_id: Optional[str] = Query(None, alias="camera"),
+):
+    """Returns incident counts, origin breakdowns, verdict counts, and reviewed false alarm share."""
+    return db.get_stats(from_date=from_date, to_date=to_date, camera_id=camera_id)
+
+
+@app.get("/api/alerts/stream")
+async def sse_alerts_stream():
+    """
+    Server-Sent Events (SSE) channel that emits only 'confirmed', 'cleared',
+    'verdict' and 'system_warning' events across all cameras.
+    """
+    queue = alert_bus.subscribe()
+
+    async def event_generator():
+        try:
+            # Initial ping
+            yield "event: connected\ndata: {\"status\":\"listening\"}\n\n"
+            while True:
+                msg = await queue.get()
+                ev_type = msg.get("event", "alert")
+                ev_data = json.dumps(msg.get("data", {}))
+                yield f"event: {ev_type}\ndata: {ev_data}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            alert_bus.unsubscribe(queue)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 @app.post("/api/sessions", response_model=SessionCreateResponse)
 async def create_session(
     request: Request,
     source: Optional[str] = Form(None),
+    camera_id: Optional[str] = Form(None),
     settings: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
 ):
     """
     Creates an analysis session for sample videos, uploaded video files, or live webcam.
-    Supports JSON requests or multipart/form-data for file uploads.
+    Enforces maximum of 4 concurrent sessions with HTTP 409 Conflict rejection.
     """
-    # Handle JSON body fallback
     parsed_source = source
+    parsed_camera_id = camera_id or "cam_01"
     parsed_settings = None
 
     if request.headers.get("content-type", "").startswith("application/json"):
         try:
             body = await request.json()
             parsed_source = body.get("source")
+            parsed_camera_id = body.get("camera_id") or parsed_camera_id
             if "settings" in body and body["settings"]:
                 parsed_settings = PipelineSettings(**body["settings"])
         except Exception as e:
@@ -200,7 +277,6 @@ async def create_session(
         if not file:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No file uploaded for 'upload' mode")
 
-        # Validate file extension
         _, ext = os.path.splitext(file.filename or "")
         ext = ext.lower()
         if ext not in ALLOWED_EXTENSIONS:
@@ -209,13 +285,12 @@ async def create_session(
                 detail=f"Unsupported file format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
             )
 
-        # Write to temporary file with size validation
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
         temp_file_path = tfile.name
         bytes_written = 0
 
         try:
-            while chunk := await file.read(1024 * 1024): # 1 MB chunks
+            while chunk := await file.read(1024 * 1024):
                 bytes_written += len(chunk)
                 if bytes_written > MAX_UPLOAD_SIZE_BYTES:
                     tfile.close()
@@ -240,44 +315,34 @@ async def create_session(
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown source mode: '{parsed_source}'")
 
-    try:
-        session = session_manager.create_session(
-            source=parsed_source,
-            source_path=source_path,
-            temp_file_path=temp_file_path,
-            settings=parsed_settings,
-        )
-    except Exception as e:
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to initialize session: {e}")
+    session = session_manager.create_session(
+        source=parsed_source,
+        camera_id=parsed_camera_id,
+        source_path=source_path,
+        temp_file_path=temp_file_path,
+        settings=parsed_settings,
+    )
 
     return SessionCreateResponse(
         session_id=session.session_id,
         source=session.source,
+        camera_id=session.camera_id,
         total_frames=session.total_frames,
         fps=session.fps,
-        message=f"Session {session.session_id} initialized for source {parsed_source}",
+        message=f"Session {session.session_id} initialized for camera {session.camera_id}",
     )
 
 
 @app.websocket("/api/sessions/{session_id}/stream")
 async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
-    """
-    WebSocket endpoint streaming processed video frames (samples or upload):
-    Pushes:
-      1. JSON text frame (TelemetryMessage)
-      2. Binary JPEG frame (annotated frame bytes)
-    Receives control commands:
-      {"type": "stop"}, {"type": "pause"}, {"type": "resume"}, {"type": "settings", ...}
-    """
     await websocket.accept()
     session = session_manager.get_session(session_id)
     if not session or not session.cap or not session.processor:
         await websocket.close(code=4004, reason="Session not found or not initialized for streaming")
         return
 
-    logger.info(f"WebSocket client connected to session {session_id}")
+    session.status = "running"
+    logger.info(f"WebSocket client connected to session {session_id} on camera {session.camera_id}")
 
     stop_event = asyncio.Event()
 
@@ -291,12 +356,15 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
                 if mtype == "stop":
                     logger.info(f"Client requested stop for session {session_id}")
                     session.is_stopped = True
+                    session.status = "finished"
                     stop_event.set()
                     break
                 elif mtype == "pause":
                     session.is_paused = True
+                    session.status = "paused"
                 elif mtype == "resume":
                     session.is_paused = False
+                    session.status = "running"
                 elif mtype == "settings":
                     new_settings_data = msg.get("settings", {})
                     try:
@@ -322,16 +390,15 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
                 await asyncio.sleep(0.05)
                 continue
 
-            # Read next frame
             loop = asyncio.get_running_loop()
             ret, frame = await loop.run_in_executor(None, session.cap.read)
             if not ret or frame is None:
-                # Video reached end
                 final_telemetry = TelemetryMessage(
                     frame_idx=frame_idx,
                     total_frames=session.total_frames,
                     fps=session.fps,
                     timestamp_ms=int(time.time() * 1000),
+                    camera_id=session.camera_id,
                     vehicles_in_frame=0,
                     vehicles_total_unique=len(session.processor.unique_vehicle_ids),
                     confirmed_accidents=0,
@@ -341,18 +408,22 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
                     finished=True,
                 )
                 await websocket.send_text(final_telemetry.model_dump_json())
+                session.status = "finished"
                 break
 
             t_start = time.time()
-
-            # Execute pipeline off the event loop
             timestamp_ms = int(time.time() * 1000)
+
             jpeg_bytes, telemetry, _ = await loop.run_in_executor(
                 None, session.processor.process, frame, timestamp_ms, frame_idx, session.fps
             )
             telemetry.dropped_frames = dropped_frames_count
+            session.current_fps = telemetry.fps
 
-            # Send telemetry JSON followed by binary JPEG
+            # Broadcast new alert events to global SSE bus
+            for ev in telemetry.events:
+                asyncio.create_task(alert_bus.broadcast(ev.type, ev.model_dump()))
+
             try:
                 await websocket.send_text(telemetry.model_dump_json())
                 await websocket.send_bytes(jpeg_bytes)
@@ -360,10 +431,9 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
                 logger.warning(f"Failed to send frame {frame_idx} to client: {e}")
                 dropped_frames_count += 1
                 session.processor.dropped_frames = dropped_frames_count
+                session.dropped_frames = dropped_frames_count
 
             frame_idx += 1
-
-            # Throttle to native FPS
             elapsed = time.time() - t_start
             sleep_time = max(0.001, target_dt - elapsed)
             await asyncio.sleep(sleep_time)
@@ -384,12 +454,6 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
 
 @app.websocket("/api/sessions/{session_id}/webcam")
 async def websocket_webcam_endpoint(websocket: WebSocket, session_id: str):
-    """
-    Browser Webcam WebSocket endpoint:
-    Receives JPEG binary frames from client webcam (~10-15 FPS, max 960px width).
-    Measures frame rate dynamically from incoming frame timestamps.
-    Replies with TelemetryMessage JSON + annotated frame JPEG bytes.
-    """
     await websocket.accept()
     session = session_manager.get_session(session_id)
     if not session:
@@ -398,6 +462,7 @@ async def websocket_webcam_endpoint(websocket: WebSocket, session_id: str):
 
     session.init_webcam_processor(estimated_fps=15.0)
     processor = session.processor
+    session.status = "running"
     logger.info(f"Webcam WebSocket connected for session {session_id}")
 
     frame_idx = 0
@@ -407,7 +472,6 @@ async def websocket_webcam_endpoint(websocket: WebSocket, session_id: str):
 
     try:
         while True:
-            # Client sends binary JPEG bytes or JSON message
             message = await websocket.receive()
             if "bytes" in message and message["bytes"]:
                 jpeg_bytes_in = message["bytes"]
@@ -424,26 +488,27 @@ async def websocket_webcam_endpoint(websocket: WebSocket, session_id: str):
             else:
                 continue
 
-            # Measure FPS dynamically from incoming timestamps
             if last_timestamp_ms is not None:
                 dt_ms = max(1, timestamp_ms - last_timestamp_ms)
                 inst_fps = 1000.0 / dt_ms
                 smoothed_fps = 0.85 * smoothed_fps + 0.15 * inst_fps
             last_timestamp_ms = timestamp_ms
 
-            # Decode incoming JPEG frame
             nparr = np.frombuffer(jpeg_bytes_in, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             if frame is None:
                 continue
 
-            # Process frame off event loop
             jpeg_out, telemetry, _ = await loop.run_in_executor(
                 None, processor.process, frame, timestamp_ms, frame_idx, smoothed_fps
             )
             telemetry.fps = round(smoothed_fps, 1)
+            session.current_fps = telemetry.fps
 
-            # Reply with Telemetry JSON followed by annotated JPEG bytes
+            # Broadcast events to SSE bus
+            for ev in telemetry.events:
+                asyncio.create_task(alert_bus.broadcast(ev.type, ev.model_dump()))
+
             await websocket.send_text(telemetry.model_dump_json())
             await websocket.send_bytes(jpeg_out)
 

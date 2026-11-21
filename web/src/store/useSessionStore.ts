@@ -4,6 +4,21 @@ import { DEFAULT_SETTINGS } from "../mock/mockData";
 
 export type SessionStatus = "idle" | "connecting" | "running" | "paused" | "stopping" | "error" | "finished";
 export type SourceType = "upload" | "sample1" | "sample2" | "webcam" | "demos";
+export type WallLayout = "1" | "2" | "4";
+export type DensityMode = "comfortable" | "compact";
+export type ThemeMode = "dark" | "light" | "high-contrast";
+
+export interface ToastItem {
+  id: string;
+  type: "confirmed" | "cleared" | "info" | "undo";
+  title: string;
+  message: string;
+  cameraId?: string;
+  zoneId?: number;
+  timestamp: number;
+  snapshotUrl?: string;
+  undoAction?: () => void;
+}
 
 interface SessionState {
   status: SessionStatus;
@@ -16,8 +31,33 @@ interface SessionState {
   events: TelemetryEvent[];
   error: string | null;
   isMock: boolean;
+
+  // Multi-Camera & Wall Layout
+  activeCameraId: string;
+  wallLayout: WallLayout;
+  tileCameras: string[];
+  cameraTelemetry: Record<string, TelemetryMessage>;
+  cameraStatus: Record<string, SessionStatus>;
+
+  // Operator Console Preferences
+  isMuted: boolean;
+  density: DensityMode;
+  theme: ThemeMode;
+  unreviewedCount: number;
+
+  // Vector Overlay Toggles
+  showZoneBoxes: boolean;
+  showVehicleBoxes: boolean;
+  showMotionTrails: boolean;
+  showGhostOutlines: boolean;
+  showSpeedVectors: boolean;
   showClientBboxOverlay: boolean;
-  theme: "dark" | "light";
+
+  // UI Modals
+  isCommandPaletteOpen: boolean;
+  isKeyboardHelpOpen: boolean;
+  isAlertDrawerOpen: boolean;
+  toasts: ToastItem[];
 
   // Actions
   setSource: (source: SourceType) => void;
@@ -28,80 +68,107 @@ interface SessionState {
   setStatus: (status: SessionStatus) => void;
   setSessionId: (id: string | null) => void;
   setTelemetry: (msg: TelemetryMessage) => void;
+  setCameraTelemetry: (cameraId: string, msg: TelemetryMessage) => void;
+  setCameraStatus: (cameraId: string, status: SessionStatus) => void;
+  setActiveCameraId: (id: string) => void;
+  setWallLayout: (layout: WallLayout) => void;
+  setTileCameras: (cams: string[]) => void;
   addEvent: (event: TelemetryEvent) => void;
   clearEvents: () => void;
   setError: (err: string | null) => void;
   setIsMock: (isMock: boolean) => void;
-  toggleBboxOverlay: () => void;
+  toggleMute: () => void;
+  setDensity: (density: DensityMode) => void;
+  setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
+  setUnreviewedCount: (count: number) => void;
+  toggleOverlay: (key: "showZoneBoxes" | "showVehicleBoxes" | "showMotionTrails" | "showGhostOutlines" | "showSpeedVectors") => void;
+  toggleBboxOverlay: () => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+  setKeyboardHelpOpen: (open: boolean) => void;
+  setAlertDrawerOpen: (open: boolean) => void;
+  addToast: (toast: Omit<ToastItem, "id" | "timestamp">) => void;
+  removeToast: (id: string) => void;
   resetSession: () => void;
 }
 
 const STORAGE_KEY_SETTINGS = "rad_pipeline_settings";
 const STORAGE_KEY_THEME = "rad_theme";
+const STORAGE_KEY_DENSITY = "rad_density";
+const STORAGE_KEY_MUTED = "rad_muted";
 
-function loadSavedSettings(): PipelineSettings {
+function loadSafe<T>(key: string, fallback: T): T {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY_SETTINGS);
-    if (saved) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
-    }
-  } catch {
-    // localStorage not accessible
-  }
-  return DEFAULT_SETTINGS;
+    const val = localStorage.getItem(key);
+    if (val !== null) return JSON.parse(val);
+  } catch {}
+  return fallback;
 }
 
-function saveSettings(settings: PipelineSettings) {
+function saveSafe(key: string, val: any) {
   try {
-    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-  } catch {
-    // ignore
-  }
-}
-
-function loadSavedTheme(): "dark" | "light" {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_THEME);
-    if (saved === "light" || saved === "dark") return saved;
-  } catch {
-    // ignore
-  }
-  return "dark";
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch {}
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
   status: "idle",
   source: "sample1",
   uploadedFile: null,
-  settings: loadSavedSettings(),
+  settings: loadSafe(STORAGE_KEY_SETTINGS, DEFAULT_SETTINGS),
   sessionId: null,
   telemetry: null,
   fpsHistory: [],
   events: [],
   error: null,
   isMock: false,
+
+  activeCameraId: "cam_01",
+  wallLayout: "4",
+  tileCameras: ["cam_01", "cam_02", "cam_03", "cam_04"],
+  cameraTelemetry: {},
+  cameraStatus: {
+    cam_01: "idle",
+    cam_02: "idle",
+    cam_03: "idle",
+    cam_04: "idle",
+  },
+
+  isMuted: loadSafe(STORAGE_KEY_MUTED, false),
+  density: loadSafe(STORAGE_KEY_DENSITY, "comfortable"),
+  theme: loadSafe(STORAGE_KEY_THEME, "dark"),
+  unreviewedCount: 0,
+
+  showZoneBoxes: true,
+  showVehicleBoxes: true,
+  showMotionTrails: true,
+  showGhostOutlines: true,
+  showSpeedVectors: true,
   showClientBboxOverlay: false,
-  theme: loadSavedTheme(),
+
+  isCommandPaletteOpen: false,
+  isKeyboardHelpOpen: false,
+  isAlertDrawerOpen: false,
+  toasts: [],
 
   setSource: (source) => set({ source }),
   setUploadedFile: (uploadedFile) => set({ uploadedFile }),
 
   setSettings: (settings) => {
-    saveSettings(settings);
+    saveSafe(STORAGE_KEY_SETTINGS, settings);
     set({ settings });
   },
 
   updateSetting: (key, value) => {
     set((state) => {
       const updated = { ...state.settings, [key]: value };
-      saveSettings(updated);
+      saveSafe(STORAGE_KEY_SETTINGS, updated);
       return { settings: updated };
     });
   },
 
   resetSettings: () => {
-    saveSettings(DEFAULT_SETTINGS);
+    saveSafe(STORAGE_KEY_SETTINGS, DEFAULT_SETTINGS);
     set({ settings: DEFAULT_SETTINGS });
   },
 
@@ -110,58 +177,105 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   setTelemetry: (msg) => {
     set((state) => {
-      // Append FPS to history (last 30 frames)
       const nextFpsHistory = [...state.fpsHistory, msg.fps].slice(-30);
-
-      // Collect new events if any
       let nextEvents = state.events;
       if (msg.events && msg.events.length > 0) {
-        // Prepend new events, keep max 200
         nextEvents = [...msg.events, ...state.events].slice(0, 200);
       }
-
       return {
         telemetry: msg,
         fpsHistory: nextFpsHistory,
         events: nextEvents,
+        cameraTelemetry: {
+          ...state.cameraTelemetry,
+          [msg.camera_id || "cam_01"]: msg,
+        },
       };
     });
   },
 
-  addEvent: (event) => {
+  setCameraTelemetry: (cameraId, msg) => {
     set((state) => ({
-      events: [event, ...state.events].slice(0, 200),
+      cameraTelemetry: {
+        ...state.cameraTelemetry,
+        [cameraId]: msg,
+      },
     }));
   },
 
+  setCameraStatus: (cameraId, status) => {
+    set((state) => ({
+      cameraStatus: {
+        ...state.cameraStatus,
+        [cameraId]: status,
+      },
+    }));
+  },
+
+  setActiveCameraId: (activeCameraId) => set({ activeCameraId }),
+  setWallLayout: (wallLayout) => set({ wallLayout }),
+  setTileCameras: (tileCameras) => set({ tileCameras }),
+
+  addEvent: (event) => set((state) => ({ events: [event, ...state.events].slice(0, 200) })),
   clearEvents: () => set({ events: [] }),
 
   setError: (error) => set({ error, status: error ? "error" : "idle" }),
-
   setIsMock: (isMock) => set({ isMock }),
 
-  toggleBboxOverlay: () => set((state) => ({ showClientBboxOverlay: !state.showClientBboxOverlay })),
+  toggleMute: () => {
+    set((state) => {
+      const next = !state.isMuted;
+      saveSafe(STORAGE_KEY_MUTED, next);
+      return { isMuted: next };
+    });
+  },
+
+  setDensity: (density) => {
+    saveSafe(STORAGE_KEY_DENSITY, density);
+    set({ density });
+  },
+
+  setTheme: (theme) => {
+    saveSafe(STORAGE_KEY_THEME, theme);
+    set({ theme });
+  },
 
   toggleTheme: () => {
     set((state) => {
-      const nextTheme = state.theme === "dark" ? "light" : "dark";
-      try {
-        localStorage.setItem(STORAGE_KEY_THEME, nextTheme);
-      } catch {
-        // ignore
-      }
-      return { theme: nextTheme };
+      const next = state.theme === "dark" ? "light" : "dark";
+      saveSafe(STORAGE_KEY_THEME, next);
+      return { theme: next };
     });
   },
 
-  resetSession: () => {
-    set({
-      status: "idle",
-      sessionId: null,
-      telemetry: null,
-      fpsHistory: [],
-      error: null,
-    });
+  setUnreviewedCount: (unreviewedCount) => set({ unreviewedCount }),
+
+  toggleOverlay: (key) => set((state) => ({ [key]: !state[key] })),
+  toggleBboxOverlay: () => set((state) => ({ showClientBboxOverlay: !state.showClientBboxOverlay })),
+
+  setCommandPaletteOpen: (isCommandPaletteOpen) => set({ isCommandPaletteOpen }),
+  setKeyboardHelpOpen: (isKeyboardHelpOpen) => set({ isKeyboardHelpOpen }),
+  setAlertDrawerOpen: (isAlertDrawerOpen) => set({ isAlertDrawerOpen }),
+
+  addToast: (toast) => {
+    const id = `toast_${Date.now()}_${Math.random()}`;
+    const newToast: ToastItem = { ...toast, id, timestamp: Date.now() };
+    set((state) => ({ toasts: [newToast, ...state.toasts].slice(0, 5) }));
+
+    // Auto dismiss after 7s (or 10s for undo)
+    const timeout = toast.type === "undo" ? 10000 : 7000;
+    setTimeout(() => {
+      set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+    }, timeout);
   },
+
+  removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
+
+  resetSession: () => set({
+    status: "idle",
+    sessionId: null,
+    telemetry: null,
+    fpsHistory: [],
+    error: null,
+  }),
 }));
-

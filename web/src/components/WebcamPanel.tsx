@@ -54,10 +54,11 @@ export const WebcamPanel: React.FC<Props> = () => {
 
   useEffect(() => {
     startCamera();
+    const videoEl = videoRef.current;
     return () => {
       // Stop all tracks on unmount
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
+      if (videoEl && videoEl.srcObject) {
+        const stream = videoEl.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
       }
     };
