@@ -134,13 +134,13 @@ export const VectorOverlayCanvas: React.FC<Props> = ({
           const sh = (y2 - y1) * scaleY;
 
           let strokeColor = "rgba(239, 68, 68, 0.95)"; // Active: intense red
-          let fillColor = "rgba(239, 68, 68, 0.15)";
+          let fillColor = "rgba(239, 68, 68, 0.18)";
           if (zone.status === "MAINTAINED") {
-            strokeColor = "rgba(245, 158, 11, 0.95)"; // Amber
-            fillColor = "rgba(245, 158, 11, 0.15)";
+            strokeColor = "rgba(244, 63, 94, 0.95)"; // Maintained/Held: vivid rose-red
+            fillColor = "rgba(244, 63, 94, 0.15)";
           } else if (zone.status === "TENTATIVE") {
-            strokeColor = "rgba(148, 163, 184, 0.5)"; // Slate
-            fillColor = "rgba(148, 163, 184, 0.05)";
+            strokeColor = "rgba(251, 146, 60, 0.85)"; // Tentative candidate: warning amber-orange
+            fillColor = "rgba(251, 146, 60, 0.08)";
           }
 
           // Shaded fill

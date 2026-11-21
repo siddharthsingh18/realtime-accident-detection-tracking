@@ -54,6 +54,7 @@ def _get_demo_metadata(name: str, config: dict) -> DemoItem:
                 duration = round(total / fps, 2)
             cap.release()
 
+    demo_url = f"/api/demos/{name}/video"
     return DemoItem(
         name=name,
         title=config["title"],
@@ -63,7 +64,8 @@ def _get_demo_metadata(name: str, config: dict) -> DemoItem:
         duration_seconds=duration,
         size_bytes=size_bytes,
         playable=is_h264,
-        url=f"/api/demos/{name}/video",
+        url=demo_url,
+        video_url=demo_url,
     )
 
 

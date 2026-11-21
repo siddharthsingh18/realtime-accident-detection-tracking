@@ -126,6 +126,7 @@ class DemoItem(BaseModel):
     size_bytes: int
     playable: bool
     url: str
+    video_url: Optional[str] = None
 
 
 # --- Incident Persistence Models ---

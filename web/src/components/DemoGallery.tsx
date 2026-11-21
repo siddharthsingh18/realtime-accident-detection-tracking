@@ -76,50 +76,57 @@ export const DemoGallery: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {demos.map((demo) => (
-          <div
-            key={demo.name}
-            className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden flex flex-col justify-between shadow-lg"
-          >
-            <div className="relative aspect-video bg-black">
-              <video
-                src={demo.video_url}
-                controls
-                preload="metadata"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="p-4 flex-1 flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="text-sm font-bold text-slate-100">{demo.title}</h4>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[10px] text-emerald-400">
-                    {demo.codec.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 mt-1">{demo.description}</p>
-                <div className="flex items-center gap-3 mt-2 text-[11px] font-mono text-slate-500">
-                  <span>Res: {demo.resolution}</span>
-                  <span>•</span>
-                  <span>FPS: {demo.fps}</span>
-                  <span>•</span>
-                  <span>Duration: {demo.duration_seconds.toFixed(1)}s</span>
-                </div>
-              </div>
+        {demos.map((demo) => {
+          const rawUrl = demo.video_url || demo.url || `/api/demos/${demo.name}/video`;
+          const videoSrc = rawUrl.startsWith("http")
+            ? rawUrl
+            : `${import.meta.env.VITE_API_URL || ""}${rawUrl}`;
 
-              <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-end">
-                <a
-                  href={demo.video_url}
-                  download={`${demo.name}.mp4`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download MP4</span>
-                </a>
+          return (
+            <div
+              key={demo.name}
+              className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden flex flex-col justify-between shadow-lg"
+            >
+              <div className="relative aspect-video bg-black">
+                <video
+                  src={videoSrc}
+                  controls
+                  preload="metadata"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="p-4 flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-sm font-bold text-slate-100">{demo.title}</h4>
+                    <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono text-[10px] text-emerald-400">
+                      {demo.codec.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">{demo.description}</p>
+                  <div className="flex items-center gap-3 mt-2 text-[11px] font-mono text-slate-500">
+                    <span>Res: {demo.resolution}</span>
+                    <span>•</span>
+                    <span>FPS: {demo.fps}</span>
+                    <span>•</span>
+                    <span>Duration: {demo.duration_seconds.toFixed(1)}s</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-end">
+                  <a
+                    href={videoSrc}
+                    download={`${demo.name}.mp4`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download MP4</span>
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

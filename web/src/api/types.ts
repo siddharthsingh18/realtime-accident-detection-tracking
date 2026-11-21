@@ -227,7 +227,8 @@ export const DemoItemSchema = z.object({
   fps: z.number(),
   codec: z.string().default("H.264"),
   duration_seconds: z.number(),
-  video_url: z.string(),
+  url: z.string().optional(),
+  video_url: z.string().optional(),
 });
 
 export type DemoItem = z.infer<typeof DemoItemSchema>;

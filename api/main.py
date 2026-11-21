@@ -47,6 +47,7 @@ from api.models import (
     SessionCreateRequest,
     SessionCreateResponse,
     TelemetryMessage,
+    ZoneTelemetry,
     SystemStatusResponse,
 )
 from api.processor import FrameProcessor, get_shared_detector
@@ -366,10 +367,16 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
                     session.is_paused = False
                     session.status = "running"
                 elif mtype == "settings":
-                    new_settings_data = msg.get("settings", {})
+                    new_settings_data = msg.get("settings")
+                    if not isinstance(new_settings_data, dict):
+                        new_settings_data = {k: v for k, v in msg.items() if k != "type"}
                     try:
-                        new_settings = PipelineSettings(**new_settings_data)
+                        current_dict = session.processor.settings.model_dump()
+                        current_dict.update(new_settings_data)
+                        new_settings = PipelineSettings(**current_dict)
                         session.processor.update_settings(new_settings)
+                        session.settings = new_settings
+                        logger.info(f"Live settings applied for session {session_id}: {new_settings_data}")
                     except Exception as e:
                         logger.warning(f"Error applying live settings: {e}")
         except WebSocketDisconnect:
@@ -393,6 +400,21 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
             loop = asyncio.get_running_loop()
             ret, frame = await loop.run_in_executor(None, session.cap.read)
             if not ret or frame is None:
+                all_final_zones = session.processor.persistence_mgr.all_zones()
+                final_zones = [
+                    ZoneTelemetry(
+                        zone_id=z.zone_id,
+                        status=z.status,
+                        conf=float(z.conf),
+                        bbox=(float(z.bbox[0]), float(z.bbox[1]), float(z.bbox[2]), float(z.bbox[3])),
+                        involved_vehicle_ids=list(z.involved_vehicle_ids),
+                        speed_loss_pct=getattr(z, "speed_loss_pct", None),
+                        first_seen_frame=getattr(z, "first_seen_frame", frame_idx),
+                        confirmed_at_ms=int(time.time() * 1000) if z.status in ("ACTIVE", "MAINTAINED") else None,
+                        origin=session.processor.zone_origins.get(z.zone_id, "detector"),
+                    )
+                    for z in all_final_zones
+                ]
                 final_telemetry = TelemetryMessage(
                     frame_idx=frame_idx,
                     total_frames=session.total_frames,
@@ -401,9 +423,9 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
                     camera_id=session.camera_id,
                     vehicles_in_frame=0,
                     vehicles_total_unique=len(session.processor.unique_vehicle_ids),
-                    confirmed_accidents=0,
+                    confirmed_accidents=len(session.processor.persistence_mgr.confirmed_zones()),
                     dropped_frames=dropped_frames_count,
-                    zones=[],
+                    zones=final_zones,
                     events=[],
                     finished=True,
                 )

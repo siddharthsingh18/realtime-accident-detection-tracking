@@ -354,7 +354,8 @@ class FrameProcessor:
                 )
             )
 
-        # Build ZoneTelemetry
+        # Build ZoneTelemetry across all tracking zones (ACTIVE, MAINTAINED, and TENTATIVE)
+        all_zones = self.persistence_mgr.all_zones()
         zone_telemetry = [
             ZoneTelemetry(
                 zone_id=z.zone_id,
@@ -367,7 +368,7 @@ class FrameProcessor:
                 confirmed_at_ms=timestamp_ms if z.status in ("ACTIVE", "MAINTAINED") else None,
                 origin=self.zone_origins.get(z.zone_id, "detector"),
             )
-            for z in confirmed_accidents
+            for z in all_zones
         ]
 
         total_ms = t_vehicle + t_accident + t_logic + t_render

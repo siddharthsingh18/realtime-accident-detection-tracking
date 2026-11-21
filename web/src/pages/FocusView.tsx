@@ -119,7 +119,25 @@ export const FocusView: React.FC = () => {
 
       const streamWs = new StreamWebSocket(res.session_id, {
         onTelemetry: (msg) => {
-          setTelemetry(msg);
+          if (msg.finished) {
+            setTelemetry({
+              ...msg,
+              confirmed_accidents:
+                msg.confirmed_accidents > 0
+                  ? msg.confirmed_accidents
+                  : (telemetry?.confirmed_accidents ?? 0),
+              zones:
+                msg.zones && msg.zones.length > 0
+                  ? msg.zones
+                  : (telemetry?.zones ?? []),
+              tracks:
+                msg.tracks && msg.tracks.length > 0
+                  ? msg.tracks
+                  : (telemetry?.tracks ?? []),
+            });
+          } else {
+            setTelemetry(msg);
+          }
         },
         onFrame: (blob) => {
           handleFrameArrived(blob, telemetry?.frame_idx || 0, Date.now());
@@ -516,7 +534,9 @@ export const FocusView: React.FC = () => {
           {/* Tab 3: Tuning & Save Profile */}
           {activeTab === "tuning" && (
             <div className="space-y-4">
-              <SettingsSidebar />
+              <SettingsSidebar
+                onLiveSettingsChange={(updated) => wsRef.current?.updateSettings(updated)}
+              />
               <button
                 onClick={handleSaveProfile}
                 className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs shadow transition flex items-center justify-center gap-1.5"

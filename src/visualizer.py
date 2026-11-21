@@ -122,7 +122,7 @@ class Visualizer:
         """Draws confirmed and maintained accident bounding boxes."""
         for zone in accident_zones:
             x1, y1, x2, y2 = map(int, zone.bbox)
-            color = self.color_accident if zone.status == "ACTIVE" else self.color_maintained
+            color = self.color_accident if zone.status == "ACTIVE" else (20, 80, 240)
             thickness = self.line_thickness + 2
 
             # Outer bounding box
