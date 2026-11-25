@@ -119,11 +119,19 @@ class FrameProcessor:
             tentative_grace=self.tentative_grace,
         )
 
+        kg = self.settings.kinematic_gate
         self.collision_detector = VehicleCollisionDetector(
             fps=self.fps,
             calibrator=self.calibrator,
             deceleration_threshold=self.settings.deceleration_threshold_px,
             deceleration_threshold_kmh=self.settings.deceleration_threshold_kmh,
+            kinematic_gate_enabled=kg.enabled,
+            kinematic_gate_mode=kg.mode,
+            min_ttc_before_contact_s=kg.min_ttc_before_contact_s,
+            min_decel_mps2=kg.min_decel_mps2,
+            min_relative_speed_drop_mps=kg.min_relative_speed_drop_mps,
+            lookback_window_s=kg.lookback_window_s,
+            stationary_speed_mps=kg.stationary_speed_mps,
         )
 
         self.visualizer = Visualizer(
@@ -164,6 +172,15 @@ class FrameProcessor:
         self.persistence_mgr.iou_match_threshold = new_settings.iou_threshold
         self.collision_detector.deceleration_threshold = new_settings.deceleration_threshold_px
         self.collision_detector.deceleration_threshold_kmh = new_settings.deceleration_threshold_kmh
+
+        kg = new_settings.kinematic_gate
+        self.collision_detector.kinematic_gate_enabled = kg.enabled
+        self.collision_detector.kinematic_gate_mode = kg.mode
+        self.collision_detector.min_ttc_before_contact_s = kg.min_ttc_before_contact_s
+        self.collision_detector.min_decel_mps2 = kg.min_decel_mps2
+        self.collision_detector.min_relative_speed_drop_mps = kg.min_relative_speed_drop_mps
+        self.collision_detector.lookback_window_s = kg.lookback_window_s
+        self.collision_detector.stationary_speed_mps = kg.stationary_speed_mps
 
     def is_in_ignore_region(self, bbox: List[float], frame_w: int = 1280, frame_h: int = 720) -> bool:
         if not self.ignore_region or len(self.ignore_region) < 3:
@@ -349,6 +366,7 @@ class FrameProcessor:
                         clip_path=clip_path,
                         settings=self.settings.model_dump(),
                         model_info=model_meta,
+                        kinematics=target_zone.kinematics,
                     )
 
                     # Schedule clip capture

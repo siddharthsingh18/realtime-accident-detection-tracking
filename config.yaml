@@ -45,6 +45,19 @@ logic:
   suppress_vehicle_labels: true           # Suppress normal vehicle labels inside confirmed accident regions
   use_collision_heuristic: true           # Enable/disable kinematic vehicle-vehicle collision heuristic
 
+# Kinematic Verification & False-Alarm Gating (Optional)
+# Default is false to preserve existing baseline behavior and evaluation reproducibility.
+# Thresholds below are placeholders and MUST be tuned on the 'dev' split only.
+accident:
+  kinematic_gate:
+    enabled: false                        # Master toggle (default false)
+    mode: "require"                       # "require" (alert only if kinematic evidence agrees) or "boost" (raises confidence)
+    min_ttc_before_contact_s: 2.0         # (Untuned placeholder) Max TTC in seconds before contact
+    min_decel_mps2: 4.0                   # (Untuned placeholder) Minimum peak deceleration in m/s^2
+    min_relative_speed_drop_mps: 3.0      # (Untuned placeholder) Minimum relative speed drop in m/s
+    lookback_window_s: 1.0                # Kinematic history lookback window in seconds
+    stationary_speed_mps: 1.2             # (Untuned placeholder) Speed ceiling (m/s) to classify vehicles as queued / stationary
+
 # Visualization & Output Settings
 visualization:
   show_tracking_ids: true                 # Render BoT-SORT unique IDs (#1, #2, etc.)

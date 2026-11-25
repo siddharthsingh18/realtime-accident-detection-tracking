@@ -3,6 +3,10 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple, Set, Callable
 from collections import deque
 from dataclasses import dataclass, field
+from src.kinematics import (
+    compute_pair_kinematics,
+    evaluate_kinematic_gate,
+)
 
 logger = logging.getLogger("TrafficMonitor.Logic")
 
@@ -112,6 +116,7 @@ class AccidentZone:
     ever_involved_vehicle_ids: Set[int] = field(default_factory=set)
     collision_pair: Optional[Tuple[int, int]] = None
     has_fired_on_confirm: bool = False
+    kinematics: Optional[Dict[str, Any]] = None
 
     def smooth_bbox(self, new_bbox: List[float], alpha: float = 0.70):
         """
@@ -211,6 +216,8 @@ class AccidentPersistenceManager:
 
                 if "vehicle_ids" in matched_det and matched_det["vehicle_ids"]:
                     zone.collision_pair = tuple(sorted(matched_det["vehicle_ids"]))
+                if "kinematics" in matched_det and matched_det["kinematics"]:
+                    zone.kinematics = matched_det["kinematics"]
 
                 # State Transitions on Hit:
                 if zone.status == "TENTATIVE":
@@ -279,6 +286,7 @@ class AccidentPersistenceManager:
                     hit_window=hw,
                     collision_pair=col_pair,
                     has_fired_on_confirm=fired,
+                    kinematics=det.get("kinematics"),
                 )
 
                 if is_immediate and self.on_confirm:
@@ -358,6 +366,13 @@ class VehicleCollisionDetector:
         parallel_speed_diff_ratio: float = DEFAULT_PARALLEL_SPEED_DIFF_RATIO,
         fps: float = 30.0,
         calibrator: Optional[Any] = None,
+        kinematic_gate_enabled: bool = False,
+        kinematic_gate_mode: str = "require",
+        min_ttc_before_contact_s: float = 2.0,
+        min_decel_mps2: float = 4.0,
+        min_relative_speed_drop_mps: float = 3.0,
+        lookback_window_s: float = 1.0,
+        stationary_speed_mps: float = 1.2,
     ):
         self.min_overlap_frames = min_overlap_frames
         self.iou_collision_threshold = iou_collision_threshold
@@ -370,6 +385,13 @@ class VehicleCollisionDetector:
         self.parallel_speed_diff_ratio = parallel_speed_diff_ratio
         self.fps = fps
         self.calibrator = calibrator
+        self.kinematic_gate_enabled = kinematic_gate_enabled
+        self.kinematic_gate_mode = kinematic_gate_mode
+        self.min_ttc_before_contact_s = min_ttc_before_contact_s
+        self.min_decel_mps2 = min_decel_mps2
+        self.min_relative_speed_drop_mps = min_relative_speed_drop_mps
+        self.lookback_window_s = lookback_window_s
+        self.stationary_speed_mps = stationary_speed_mps
 
         # Track consecutive overlapping frames: pair_key (id1, id2) -> int
         self.overlap_counts: Dict[Tuple[int, int], int] = {}
@@ -542,6 +564,26 @@ class VehicleCollisionDetector:
                 if not (has_deceleration or is_converging):
                     continue
 
+                # Ground-plane Time-to-Collision (TTC) & Deceleration Gating
+                kin_evidence = compute_pair_kinematics(
+                    v1=v1,
+                    v2=v2,
+                    fps=current_fps,
+                    lookback_window_s=self.lookback_window_s,
+                    stationary_speed_mps=self.stationary_speed_mps,
+                )
+                passes_gate, conf_boost, gate_reason = evaluate_kinematic_gate(
+                    evidence=kin_evidence,
+                    enabled=self.kinematic_gate_enabled,
+                    mode=self.kinematic_gate_mode,
+                    min_ttc_before_contact_s=self.min_ttc_before_contact_s,
+                    min_decel_mps2=self.min_decel_mps2,
+                    min_relative_speed_drop_mps=self.min_relative_speed_drop_mps,
+                )
+                if not passes_gate:
+                    logger.info(f"Collision candidate pair {pair_key} {gate_reason}")
+                    continue
+
                 # Enclosing union bounding box
                 col_box = [
                     min(v1.bbox[0], v2.bbox[0]),
@@ -549,7 +591,8 @@ class VehicleCollisionDetector:
                     max(v1.bbox[2], v2.bbox[2]),
                     max(v1.bbox[3], v2.bbox[3]),
                 ]
-                conf = min(0.95, max(iou * 1.5, max_cont * 1.2, 0.60))
+                base_conf = max(iou * 1.5, max_cont * 1.2, 0.60)
+                conf = min(0.98, max(0.10, base_conf + conf_boost))
 
                 collision_detections.append({
                     "bbox": col_box,
@@ -557,6 +600,7 @@ class VehicleCollisionDetector:
                     "class_id": -1,
                     "class_name": "collision",
                     "vehicle_ids": [v1.track_id, v2.track_id],
+                    "kinematics": kin_evidence.to_dict() if kin_evidence.is_calibrated else None,
                 })
 
         # Clear pairs that are no longer overlapping

@@ -41,6 +41,7 @@ def init_db():
                 verdict_at TEXT,
                 settings_json TEXT NOT NULL,
                 model_info_json TEXT NOT NULL,
+                kinematics_json TEXT,
                 is_deleted INTEGER DEFAULT 0
             );
 
@@ -85,6 +86,13 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_notif_cam_time ON notification_logs(camera_id, created_at);
             """)
 
+            # Dynamic schema migration for older databases
+            cur = conn.cursor()
+            try:
+                cur.execute("ALTER TABLE incidents ADD COLUMN kinematics_json TEXT;")
+            except sqlite3.OperationalError:
+                pass
+
             # Seed default cameras if table is empty
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) FROM cameras")
@@ -119,6 +127,7 @@ def insert_incident(
     clip_path: Optional[str],
     settings: Dict[str, Any],
     model_info: Dict[str, Any],
+    kinematics: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     conn = get_connection()
     try:
@@ -127,8 +136,9 @@ def insert_incident(
             INSERT OR REPLACE INTO incidents (
                 id, camera_id, session_id, zone_id, origin,
                 confirmed_at, peak_conf, bbox_json, involved_ids_json,
-                snapshot_path, clip_path, settings_json, model_info_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                snapshot_path, clip_path, settings_json, model_info_json,
+                kinematics_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 incident_id,
                 camera_id,
@@ -143,6 +153,7 @@ def insert_incident(
                 clip_path,
                 json.dumps(settings),
                 json.dumps(model_info),
+                json.dumps(kinematics) if kinematics else None,
             ))
         return get_incident(incident_id) or {}
     finally:
@@ -483,6 +494,7 @@ def _format_incident_row(row: Dict[str, Any]) -> Dict[str, Any]:
     row["involved_vehicle_ids"] = json.loads(row.get("involved_ids_json") or "[]")
     row["settings"] = json.loads(row.get("settings_json") or "{}")
     row["model_info"] = json.loads(row.get("model_info_json") or "{}")
+    row["kinematics"] = json.loads(row.get("kinematics_json") or "null") if row.get("kinematics_json") else None
     return row
 
 

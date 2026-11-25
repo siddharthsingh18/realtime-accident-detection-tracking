@@ -22,6 +22,7 @@ import {
   XCircle,
   CheckCircle2,
   ShieldAlert,
+  Activity,
 } from "lucide-react";
 
 export const IncidentDetail: React.FC = () => {
@@ -359,6 +360,61 @@ export const IncidentDetail: React.FC = () => {
                 <span>{incident.model_info.accident_model || "YOLOv8s"}</span>
               </div>
             </div>
+          </GlassCard>
+
+          {/* Ground-Plane Kinematics & TTC Telemetry */}
+          <GlassCard className="p-4 space-y-3 text-xs" glowColor="cyan">
+            <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <span>Ground-Plane Kinematic Telemetry</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                {incident.kinematics?.is_calibrated ? "CALIBRATED" : "UNCALIBRATED"}
+              </span>
+            </h3>
+
+            {incident.kinematics && incident.kinematics.is_calibrated ? (
+              <div className="space-y-1.5 font-mono text-[11px] text-slate-300">
+                <div className="flex justify-between py-1 border-b border-slate-800">
+                  <span className="text-slate-500">Time-to-Collision (TTC):</span>
+                  <span className="font-bold text-cyan-300">
+                    {incident.kinematics.ttc_s_display || (incident.kinematics.ttc_s ? `${incident.kinematics.ttc_s.toFixed(2)}s` : "inf")}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-800">
+                  <span className="text-slate-500">Peak Deceleration:</span>
+                  <span className="font-bold text-amber-300">
+                    {incident.kinematics.max_peak_decel_mps2 ? `${incident.kinematics.max_peak_decel_mps2.toFixed(1)} m/s²` : "0.0 m/s²"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-800">
+                  <span className="text-slate-500">Relative Speed Drop:</span>
+                  <span className="font-bold text-emerald-300">
+                    {incident.kinematics.relative_speed_drop_mps ? `${incident.kinematics.relative_speed_drop_mps.toFixed(1)} m/s` : "0.0 m/s"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-800">
+                  <span className="text-slate-500">Queued Traffic Flag:</span>
+                  <span className={incident.kinematics.is_queued_traffic ? "text-amber-400 font-bold" : "text-slate-400"}>
+                    {incident.kinematics.is_queued_traffic ? "TRUE (Queue)" : "FALSE (Moving)"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-800">
+                  <span className="text-slate-500">Closing Speed:</span>
+                  <span>{incident.kinematics.closing_speed_mps ? `${incident.kinematics.closing_speed_mps.toFixed(1)} m/s` : "N/A"}</span>
+                </div>
+                {incident.kinematics.summary_reason && (
+                  <p className="text-[10px] text-slate-400 italic pt-1">
+                    {incident.kinematics.summary_reason}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-500 italic py-1">
+                Kinematics uncalibrated or camera homography matrix not configured. Pixel-based heuristic was utilized.
+              </div>
+            )}
           </GlassCard>
 
           {/* Alert Notification Delivery Status */}

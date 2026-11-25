@@ -21,6 +21,13 @@ from .accident_logic import (
 )
 from .visualizer import Visualizer
 from .calibration import HomographyCalibrator, load_camera_calibration
+from .kinematics import (
+    VehicleKinematicProfile,
+    PairKinematicEvidence,
+    compute_vehicle_kinematics,
+    compute_pair_kinematics,
+    evaluate_kinematic_gate,
+)
 
 __all__ = [
     "DualDetector",
@@ -38,4 +45,9 @@ __all__ = [
     "Visualizer",
     "HomographyCalibrator",
     "load_camera_calibration",
+    "VehicleKinematicProfile",
+    "PairKinematicEvidence",
+    "compute_vehicle_kinematics",
+    "compute_pair_kinematics",
+    "evaluate_kinematic_gate",
 ]

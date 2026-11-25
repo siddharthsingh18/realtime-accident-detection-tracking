@@ -182,6 +182,7 @@ def run_evaluation(
     backend: str = "pytorch",
     split_filter: str = "all",
     max_frames: int = 0,
+    gate_mode: str = "off",
     results_root: str = "eval/results",
 ) -> Dict[str, Any]:
     valid, errors, clip_count = validate_dataset(eval_dir)
@@ -201,13 +202,18 @@ def run_evaluation(
 
     # Run ID and directory
     now_ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    run_id = f"eval_{now_ts}_{backend.lower()}"
+    run_id = f"eval_{now_ts}_{backend.lower()}_gate_{gate_mode}"
     run_dir = os.path.join(results_root, run_id)
     failures_dir = os.path.join(run_dir, "failures")
     os.makedirs(failures_dir, exist_ok=True)
 
     # Initialize default settings
     settings = PipelineSettings(inference_backend=backend)
+    if gate_mode == "off":
+        settings.kinematic_gate.enabled = False
+    else:
+        settings.kinematic_gate.enabled = True
+        settings.kinematic_gate.mode = gate_mode
 
     # Save config snapshot
     config_snapshot_path = os.path.join(run_dir, "config_snapshot.yaml")
@@ -455,6 +461,7 @@ def main():
     parser = argparse.ArgumentParser(description="Accident Detection Pipeline Evaluation Runner.")
     parser.add_argument("--eval-dir", default="eval", help="Path to evaluation dataset directory")
     parser.add_argument("--backend", default="pytorch", choices=["pytorch", "onnx"], help="Inference backend runtime")
+    parser.add_argument("--gate-mode", default="off", choices=["off", "boost", "require"], help="Kinematic gate mode: off (baseline default), boost, or require")
     parser.add_argument("--split", default="all", choices=["all", "dev", "test"], help="Dataset split to evaluate")
     parser.add_argument("--max-frames", type=int, default=0, help="Max frames per clip (0 for complete clip)")
     args = parser.parse_args()
@@ -464,6 +471,7 @@ def main():
         backend=args.backend,
         split_filter=args.split,
         max_frames=args.max_frames,
+        gate_mode=args.gate_mode,
     )
 
 

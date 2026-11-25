@@ -14,6 +14,16 @@ class HealthResponse(BaseModel):
     models: Dict[str, Any]
 
 
+class KinematicGateSettings(BaseModel):
+    enabled: bool = Field(False, description="Enable ground-plane TTC and deceleration gating (default false)")
+    mode: Literal["require", "boost"] = Field("require", description="Gate mode: require (blocks false alarms) or boost (raises confidence)")
+    min_ttc_before_contact_s: float = Field(2.0, ge=0.1, le=10.0, description="Max TTC in seconds before contact (placeholder)")
+    min_decel_mps2: float = Field(4.0, ge=0.5, le=30.0, description="Minimum peak deceleration in m/s^2 (placeholder)")
+    min_relative_speed_drop_mps: float = Field(3.0, ge=0.5, le=30.0, description="Minimum relative speed drop in m/s (placeholder)")
+    lookback_window_s: float = Field(1.0, ge=0.2, le=5.0, description="Kinematic history lookback window in seconds")
+    stationary_speed_mps: float = Field(1.2, ge=0.1, le=5.0, description="Speed threshold to classify vehicle as stationary (placeholder)")
+
+
 class PipelineSettings(BaseModel):
     accident_conf: float = Field(0.40, ge=0.05, le=0.95, description="Accident detection confidence cutoff")
     vehicle_conf: float = Field(0.35, ge=0.05, le=0.95, description="Vehicle detection confidence cutoff")
@@ -28,6 +38,7 @@ class PipelineSettings(BaseModel):
     deceleration_threshold_kmh: float = Field(35.0, ge=5.0, le=150.0, description="Deceleration drop threshold in km/h for calibrated cameras")
     deceleration_threshold_px: float = Field(120.0, ge=10.0, le=500.0, description="Deceleration drop threshold in px/s for uncalibrated cameras")
     save_output: bool = Field(False, description="Persist video output to disk")
+    kinematic_gate: KinematicGateSettings = Field(default_factory=KinematicGateSettings, description="Kinematic false-alarm gating settings")
 
 
 class SettingsValidateRequest(BaseModel):

@@ -127,6 +127,7 @@ export const IncidentItemSchema = z.object({
   verdict_at: z.string().nullable().optional(),
   settings: z.record(z.string(), z.any()).default({}),
   model_info: z.record(z.string(), z.any()).default({}),
+  kinematics: z.record(z.string(), z.any()).nullable().optional(),
   is_deleted: z.number().default(0),
 });
 
