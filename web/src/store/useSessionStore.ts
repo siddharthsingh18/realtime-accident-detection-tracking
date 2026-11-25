@@ -7,6 +7,7 @@ export type SourceType = "upload" | "sample1" | "sample2" | "webcam" | "demos";
 export type WallLayout = "1" | "2" | "4";
 export type DensityMode = "comfortable" | "compact";
 export type ThemeMode = "dark" | "light" | "high-contrast";
+export type EffectsQuality = "high" | "low" | "off";
 
 export interface ToastItem {
   id: string;
@@ -43,6 +44,7 @@ interface SessionState {
   isMuted: boolean;
   density: DensityMode;
   theme: ThemeMode;
+  effectsQuality: EffectsQuality;
   unreviewedCount: number;
 
   // Vector Overlay Toggles
@@ -81,6 +83,7 @@ interface SessionState {
   setDensity: (density: DensityMode) => void;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
+  setEffectsQuality: (quality: EffectsQuality) => void;
   setUnreviewedCount: (count: number) => void;
   toggleOverlay: (key: "showZoneBoxes" | "showVehicleBoxes" | "showMotionTrails" | "showGhostOutlines" | "showSpeedVectors") => void;
   toggleBboxOverlay: () => void;
@@ -96,6 +99,25 @@ const STORAGE_KEY_SETTINGS = "rad_pipeline_settings";
 const STORAGE_KEY_THEME = "rad_theme";
 const STORAGE_KEY_DENSITY = "rad_density";
 const STORAGE_KEY_MUTED = "rad_muted";
+const STORAGE_KEY_EFFECTS = "rad_effects_quality";
+
+function getDefaultEffectsQuality(): EffectsQuality {
+  if (typeof window === "undefined") return "high";
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_EFFECTS);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed === "high" || parsed === "low" || parsed === "off") return parsed;
+    }
+  } catch {}
+  if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return "off";
+  }
+  if (typeof navigator !== "undefined" && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) {
+    return "low";
+  }
+  return "high";
+}
 
 function loadSafe<T>(key: string, fallback: T): T {
   try {
@@ -137,6 +159,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   isMuted: loadSafe(STORAGE_KEY_MUTED, false),
   density: loadSafe(STORAGE_KEY_DENSITY, "comfortable"),
   theme: loadSafe(STORAGE_KEY_THEME, "dark"),
+  effectsQuality: getDefaultEffectsQuality(),
   unreviewedCount: 0,
 
   showZoneBoxes: true,
@@ -177,6 +200,9 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   setTelemetry: (msg) => {
     set((state) => {
+      if (!msg) {
+        return { telemetry: null };
+      }
       const nextFpsHistory = [...state.fpsHistory, msg.fps].slice(-30);
       let nextEvents = state.events;
       if (msg.events && msg.events.length > 0) {
@@ -248,6 +274,11 @@ export const useSessionStore = create<SessionState>((set) => ({
     });
   },
 
+  setEffectsQuality: (effectsQuality) => {
+    saveSafe(STORAGE_KEY_EFFECTS, effectsQuality);
+    set({ effectsQuality });
+  },
+
   setUnreviewedCount: (unreviewedCount) => set({ unreviewedCount }),
 
   toggleOverlay: (key) => set((state) => ({ [key]: !state[key] })),
@@ -279,3 +310,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     error: null,
   }),
 }));
+
+if (typeof window !== "undefined") {
+  (window as any).useSessionStore = useSessionStore;
+}

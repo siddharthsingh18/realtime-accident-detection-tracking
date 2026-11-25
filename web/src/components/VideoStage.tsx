@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { useSessionStore } from "../store/useSessionStore";
 import { AlertTriangle, PlayCircle, Eye, EyeOff } from "lucide-react";
+import { VideoHudOverlay } from "./ui/VideoHudOverlay";
 
 interface Props {
   latestFrame: Blob | null;
@@ -109,8 +110,18 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center group"
+      className={`relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden border transition-all duration-500 shadow-2xl flex items-center justify-center group ${
+        (telemetry?.confirmed_accidents ?? 0) > 0
+          ? "border-rose-500/80 shadow-[0_0_35px_rgba(239,68,68,0.45)] alert-border-pulse"
+          : "border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+      }`}
     >
+      {/* Cinematic HUD Corner Brackets & Markings */}
+      <VideoHudOverlay
+        isAlert={(telemetry?.confirmed_accidents ?? 0) > 0}
+        fps={telemetry?.fps}
+      />
+
       {/* Video Canvas */}
       <canvas
         ref={canvasRef}

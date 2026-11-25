@@ -153,6 +153,17 @@ async function capture() {
         });
         return;
       }
+      if (url.includes("/api/incidents/inc-20261121-001/notifications")) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([
+            { id: 1, incident_id: "inc-20261121-001", channel: "telegram", status: "sent", attempts: 1, created_at: "2026-11-21T06:14:25Z" },
+            { id: 2, incident_id: "inc-20261121-001", channel: "slack", status: "sent", attempts: 1, created_at: "2026-11-21T06:14:26Z" },
+          ]),
+        });
+        return;
+      }
       if (url.includes("/api/incidents/inc-20261121-001")) {
         await route.fulfill({
           status: 200,
@@ -173,50 +184,119 @@ async function capture() {
       });
     });
 
-    // 1. Live Wall
-    console.log("Capturing Live Wall...");
-    await page.goto(`${BASE}/`);
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: path.join(OUT_DIR, "live_wall.png"), fullPage: true });
+    await page.route("**/api/settings/notifications*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          cooldown_seconds: 60,
+          channels: {
+            telegram: { configured: true, error: null },
+            slack: { configured: true, error: null },
+            webhook: { configured: false, error: null },
+            email: { configured: false, error: null },
+          },
+        }),
+      });
+    });
 
-    // 2. Focus View
-    console.log("Capturing Focus View...");
-    await page.goto(`${BASE}/camera/cam_01`);
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: path.join(OUT_DIR, "focus_view.png"), fullPage: true });
+    await page.route("**/api/system/status*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          active_sessions: 2,
+          max_concurrent_sessions: 4,
+          device: "mps",
+        }),
+      });
+    });
 
-    // 3. Review Queue
-    console.log("Capturing Review Queue...");
-    await page.goto(`${BASE}/incidents`);
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: path.join(OUT_DIR, "review_queue.png"), fullPage: true });
+    // Helper function to capture full set of views for a theme
+    async function captureThemeViews(themeName) {
+      console.log(`\n--- Capturing ${themeName.toUpperCase()} theme views ---`);
 
-    // 4. Incident Detail
-    console.log("Capturing Incident Detail...");
-    await page.goto(`${BASE}/incidents/inc-20261121-001`);
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: path.join(OUT_DIR, "incident_detail.png"), fullPage: true });
+      // 1. Dashboard (Normal State)
+      console.log(`Capturing Dashboard (Normal) [${themeName}]...`);
+      await page.goto(`${BASE}/analyze`);
+      await page.waitForTimeout(600);
+      await page.evaluate((th) => {
+        if (window.useSessionStore) {
+          window.useSessionStore.getState().setTheme(th);
+          window.useSessionStore.getState().setTelemetry({
+            frame_idx: 142,
+            timestamp_ms: Date.now(),
+            fps: 29.8,
+            vehicles_in_frame: 4,
+            vehicles_total_unique: 18,
+            confirmed_accidents: 0,
+            zones: [{ status: "TENTATIVE", conf: 0.42, bbox: [200, 150, 400, 300], zone_id: 1, involved_vehicle_ids: [2, 5] }],
+            inference_ms: { total: 14.2 },
+          });
+        }
+      }, themeName);
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(OUT_DIR, `dashboard_normal_${themeName}.png`), fullPage: true });
 
-    // 5. Analytics View
-    console.log("Capturing Analytics View...");
-    await page.goto(`${BASE}/analytics`);
-    await page.waitForTimeout(900);
-    await page.screenshot({ path: path.join(OUT_DIR, "analytics_view.png"), fullPage: true });
+      // 2. Dashboard (Critical Alert State - Red Vignette & Beacon)
+      console.log(`Capturing Dashboard (Critical Alert) [${themeName}]...`);
+      await page.evaluate(() => {
+        if (window.useSessionStore) {
+          window.useSessionStore.getState().setTelemetry({
+            frame_idx: 188,
+            timestamp_ms: Date.now(),
+            fps: 29.5,
+            vehicles_in_frame: 3,
+            vehicles_total_unique: 19,
+            confirmed_accidents: 1,
+            zones: [{ status: "ACTIVE", conf: 0.94, bbox: [220, 180, 450, 340], zone_id: 1, involved_vehicle_ids: [3, 7] }],
+            inference_ms: { total: 15.1 },
+          });
+        }
+      });
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(OUT_DIR, `dashboard_alert_${themeName}.png`), fullPage: true });
 
-    // 6. Compare View
-    console.log("Capturing Compare View...");
-    await page.goto(`${BASE}/compare`);
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: path.join(OUT_DIR, "compare_view.png"), fullPage: true });
+      // Reset confirmed accident state
+      await page.evaluate(() => {
+        if (window.useSessionStore) {
+          window.useSessionStore.getState().setTelemetry(null);
+        }
+      });
 
-    // 7. Cameras View
-    console.log("Capturing Cameras View...");
-    await page.goto(`${BASE}/cameras`);
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: path.join(OUT_DIR, "cameras_view.png"), fullPage: true });
+      // 3. Live Wall
+      console.log(`Capturing Live Wall [${themeName}]...`);
+      await page.goto(`${BASE}/`);
+      await page.waitForTimeout(700);
+      await page.screenshot({ path: path.join(OUT_DIR, `live_wall_${themeName}.png`), fullPage: true });
+
+      // 4. Incidents Review Queue
+      console.log(`Capturing Incidents Queue [${themeName}]...`);
+      await page.goto(`${BASE}/incidents`);
+      await page.waitForTimeout(700);
+      await page.screenshot({ path: path.join(OUT_DIR, `incidents_${themeName}.png`), fullPage: true });
+
+      // 5. Analytics View
+      console.log(`Capturing Analytics View [${themeName}]...`);
+      await page.goto(`${BASE}/analytics`);
+      await page.waitForTimeout(1000);
+      await page.screenshot({ path: path.join(OUT_DIR, `analytics_${themeName}.png`), fullPage: true });
+
+      // 6. Settings View
+      console.log(`Capturing Settings View [${themeName}]...`);
+      await page.goto(`${BASE}/settings`);
+      await page.waitForTimeout(700);
+      await page.screenshot({ path: path.join(OUT_DIR, `settings_${themeName}.png`), fullPage: true });
+    }
+
+    // Capture in dark theme
+    await captureThemeViews("dark");
+
+    // Capture in light theme
+    await captureThemeViews("light");
 
     await browser.close();
-    console.log("Screenshots captured successfully to:", OUT_DIR);
+    console.log("\nAll required screenshots captured successfully to:", OUT_DIR);
   } finally {
     previewProcess.kill("SIGTERM");
   }

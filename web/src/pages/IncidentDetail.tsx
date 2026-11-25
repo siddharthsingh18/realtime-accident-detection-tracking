@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { IncidentItem, NotificationLogItem } from "../api/types";
 import { useSessionStore } from "../store/useSessionStore";
+import { GlassCard } from "../components/ui/GlassCard";
+import { GlowButton } from "../components/ui/GlowButton";
 import {
   Download,
   Share2,
@@ -19,6 +21,7 @@ import {
   RefreshCw,
   XCircle,
   CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 
 export const IncidentDetail: React.FC = () => {
@@ -100,16 +103,16 @@ export const IncidentDetail: React.FC = () => {
 
   if (!incident) {
     return (
-      <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
+      <GlassCard className="p-8 text-center space-y-3" glowColor="crimson">
         <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto" />
         <h3 className="text-base font-bold text-slate-100">Incident Not Found</h3>
         <button
           onClick={() => navigate("/incidents")}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs"
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold"
         >
           Return to Review Queue
         </button>
-      </div>
+      </GlassCard>
     );
   }
 
@@ -120,20 +123,21 @@ export const IncidentDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Breadcrumb & Action Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 p-4 rounded-2xl backdrop-blur">
+      <GlassCard className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" glowColor="cyan">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/incidents")}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-extrabold uppercase tracking-wide">
-                Incident {incident.id}
+              <h2 className="text-sm font-extrabold uppercase tracking-wide text-slate-100 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-cyan-400" />
+                <span>Incident {incident.id}</span>
               </h2>
-              <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+              <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700">
                 {incident.camera_id}
               </span>
             </div>
@@ -149,34 +153,34 @@ export const IncidentDetail: React.FC = () => {
               navigator.clipboard.writeText(window.location.href);
               addToast({ type: "info", title: "Link Copied", message: "Incident URL copied to clipboard." });
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition"
           >
-            <Share2 className="w-3.5 h-3.5" />
+            <Share2 className="w-3.5 h-3.5 text-cyan-400" />
             <span>Copy Link</span>
           </button>
 
           <a
             href={zipUrl}
             download
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Download Evidence ZIP</span>
           </a>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Main Grid: Video Player & Snapshot (2 Cols) vs Metadata & Verdict (1 Col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left: Video Player & Snapshot Preview */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl p-4 space-y-3">
+          <GlassCard className="p-4 space-y-3" glowColor="cyan">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center justify-between">
               <span>Synchronized Incident Clip (H.264 Range Stream)</span>
-              <span className="font-mono text-emerald-400 text-[11px]">5s Pre-roll • 5s Post-roll</span>
+              <span className="font-mono text-cyan-400 text-[11px]">5s Pre-roll • 5s Post-roll</span>
             </div>
 
-            <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
+            <div className="relative aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
               <video
                 ref={videoRef}
                 src={clipUrl}
@@ -197,7 +201,7 @@ export const IncidentDetail: React.FC = () => {
                     if (isPlaying) vid.pause();
                     else vid.play();
                   }}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-bold flex items-center gap-1.5 transition shadow-sm"
                 >
                   {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
                   <span>{isPlaying ? "Pause" : "Play"}</span>
@@ -221,7 +225,7 @@ export const IncidentDetail: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 {/* Speed selector */}
-                <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700 font-mono text-[10px]">
+                <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-lg border border-slate-700 font-mono text-[10px]">
                   {[0.25, 0.5, 1.0, 2.0].map((rate) => (
                     <button
                       key={rate}
@@ -229,8 +233,8 @@ export const IncidentDetail: React.FC = () => {
                         setPlaybackRate(rate);
                         if (videoRef.current) videoRef.current.playbackRate = rate;
                       }}
-                      className={`px-1.5 py-0.5 rounded ${
-                        playbackRate === rate ? "bg-emerald-600 text-white font-bold" : "text-slate-400 hover:text-white"
+                      className={`px-1.5 py-0.5 rounded transition ${
+                        playbackRate === rate ? "bg-cyan-600 text-white font-bold" : "text-slate-400 hover:text-white"
                       }`}
                     >
                       {rate}x
@@ -243,29 +247,29 @@ export const IncidentDetail: React.FC = () => {
                     type="checkbox"
                     checked={loopWindow}
                     onChange={(e) => setLoopWindow(e.target.checked)}
-                    className="rounded border-slate-700 bg-slate-800 text-emerald-500"
+                    className="rounded border-slate-700 bg-slate-800 text-cyan-500"
                   />
                   <span>Loop Event Window</span>
                 </label>
               </div>
             </div>
-          </div>
+          </GlassCard>
 
           {/* Snapshot Preview */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-2">
+          <GlassCard className="p-4 space-y-2" glowColor="cyan">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
               High-Resolution Crash Moment Snapshot
             </h4>
             <div className="aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
               <img src={snapUrl} alt="Crash Snapshot" className="w-full h-full object-contain" />
             </div>
-          </div>
+          </GlassCard>
         </div>
 
         {/* Right: Verdict Form, Settings, and Audit Trail */}
         <div className="space-y-4">
           {/* Operator Verdict Form */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 backdrop-blur shadow-xl">
+          <GlassCard className="p-4 space-y-3" glowColor="cyan">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
               Operator Verdict Decision
             </h3>
@@ -275,8 +279,8 @@ export const IncidentDetail: React.FC = () => {
                 onClick={() => setVerdict("true_accident")}
                 className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                   verdict === "true_accident"
-                    ? "bg-red-950 text-red-200 border-red-600 shadow-md ring-1 ring-red-500"
-                    : "bg-slate-800 text-slate-400 border-slate-700 hover:text-white"
+                    ? "bg-red-950 text-red-200 border-red-600 shadow-[0_0_12px_rgba(239,68,68,0.3)] ring-1 ring-red-500"
+                    : "bg-slate-800/80 text-slate-400 border-slate-700 hover:text-white"
                 }`}
               >
                 <CheckCircle className="w-4 h-4 text-red-400" />
@@ -299,7 +303,7 @@ export const IncidentDetail: React.FC = () => {
                 onClick={() => setVerdict("unsure")}
                 className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition ${
                   verdict === "unsure"
-                    ? "bg-amber-950 text-amber-200 border-amber-600 shadow-md ring-1 ring-amber-500"
+                    ? "bg-amber-950 text-amber-200 border-amber-600 shadow-[0_0_12px_rgba(245,158,11,0.3)] ring-1 ring-amber-500"
                     : "bg-slate-800/60 text-slate-400 border-slate-700 hover:text-white"
                 }`}
               >
@@ -315,22 +319,23 @@ export const IncidentDetail: React.FC = () => {
                 value={verdictNote}
                 onChange={(e) => setVerdictNote(e.target.value)}
                 placeholder="Describe observations (e.g. abrupt stop, brake lock, lane dispute)..."
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none"
+                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
               />
             </div>
 
-            <button
+            <GlowButton
               onClick={() => setShowConfirmModal(true)}
-              className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-md transition"
+              variant="primary"
+              className="w-full py-2 font-bold text-xs"
             >
               Confirm & Save Verdict
-            </button>
-          </div>
+            </GlowButton>
+          </GlassCard>
 
           {/* Active Settings Profile & Model Meta */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs">
+          <GlassCard className="p-4 space-y-3 text-xs" glowColor="cyan">
             <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-              <Sliders className="w-4 h-4 text-emerald-400" />
+              <Sliders className="w-4 h-4 text-cyan-400" />
               <span>Active Settings During Incident</span>
             </h3>
 
@@ -354,10 +359,10 @@ export const IncidentDetail: React.FC = () => {
                 <span>{incident.model_info.accident_model || "YOLOv8s"}</span>
               </div>
             </div>
-          </div>
+          </GlassCard>
 
           {/* Alert Notification Delivery Status */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs shadow-xl">
+          <GlassCard className="p-4 space-y-3 text-xs" glowColor="crimson">
             <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Bell className="w-4 h-4 text-rose-400" />
@@ -391,7 +396,7 @@ export const IncidentDetail: React.FC = () => {
                   return (
                     <div
                       key={n.id}
-                      className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-start justify-between gap-2"
+                      className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start justify-between gap-2"
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
@@ -419,10 +424,10 @@ export const IncidentDetail: React.FC = () => {
                 })}
               </div>
             )}
-          </div>
+          </GlassCard>
 
           {/* Audit History Log */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs">
+          <GlassCard className="p-4 space-y-3 text-xs" glowColor="cyan">
             <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
               <History className="w-4 h-4 text-sky-400" />
               <span>Verdict Audit History</span>
@@ -433,7 +438,7 @@ export const IncidentDetail: React.FC = () => {
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {auditRows.map((aud) => (
-                  <div key={aud.id} className="p-2 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                  <div key={aud.id} className="p-2 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1">
                     <div className="flex justify-between font-mono text-[10px]">
                       <span className="text-emerald-400 font-bold uppercase">{aud.new_verdict}</span>
                       <span className="text-slate-500">{new Date(aud.changed_at).toLocaleTimeString()}</span>
@@ -443,14 +448,14 @@ export const IncidentDetail: React.FC = () => {
                 ))}
               </div>
             )}
-          </div>
+          </GlassCard>
         </div>
       </div>
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl space-y-4">
+          <GlassCard className="w-full max-w-sm p-5 space-y-4 shadow-2xl" glowColor="cyan">
             <h3 className="text-sm font-bold text-slate-100 uppercase">Confirm Verdict Submission</h3>
             <p className="text-xs text-slate-300">
               Are you sure you want to log verdict <strong>{verdict?.replace("_", " ")}</strong> for incident {incident.id}?
@@ -464,12 +469,12 @@ export const IncidentDetail: React.FC = () => {
               </button>
               <button
                 onClick={handleApplyVerdict}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
+                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition shadow-sm"
               >
                 Confirm Verdict
               </button>
             </div>
-          </div>
+          </GlassCard>
         </div>
       )}
 

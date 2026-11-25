@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { api } from "../api/client";
 import { SystemStatusResponse, NotificationSettingsResponse } from "../api/types";
 import { SettingsSidebar } from "../components/SettingsSidebar";
+import { useSessionStore } from "../store/useSessionStore";
+import { GlassCard } from "../components/ui/GlassCard";
+import { GlowButton } from "../components/ui/GlowButton";
+import { SectionHeader } from "../components/ui/SectionHeader";
+import { StatusPill } from "../components/ui/StatusPill";
 import {
   Settings,
   HardDrive,
@@ -10,9 +15,14 @@ import {
   Bell,
   Send,
   Clock,
+  Sparkles,
+  Zap,
+  Gauge,
+  Eye,
 } from "lucide-react";
 
 export const SettingsView: React.FC = () => {
+  const { effectsQuality, setEffectsQuality } = useSessionStore();
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [retentionDays, setRetentionDays] = useState(30);
   const [maxStorageGB, setMaxStorageGB] = useState(5.0);
@@ -21,6 +31,12 @@ export const SettingsView: React.FC = () => {
   const [notifSettings, setNotifSettings] = useState<NotificationSettingsResponse | null>(null);
   const [cooldown, setCooldown] = useState(60);
   const [testStatus, setTestStatus] = useState<Record<string, string>>({});
+
+  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
     api
@@ -74,19 +90,110 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl backdrop-blur flex items-center justify-between">
+      <GlassCard className="p-4 flex items-center justify-between" glowColor="cyan">
         <div>
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wide">
-              System Configuration & Retention Policies
+            <Settings className="w-5 h-5 text-cyan-400" />
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-slate-100">
+              System Configuration & Control Center Settings
             </h2>
           </div>
-          <p className="text-[11px] text-slate-400">
-            Hardware limits, API credentials, evidence retention rules, and master pipeline parameters.
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            Hardware limits, visual rendering budget, evidence retention rules, and master pipeline parameters.
           </p>
         </div>
-      </div>
+        <StatusPill status="online" label="Engine Online" pulse />
+      </GlassCard>
+
+      {/* Visual Effects & GPU Rendering Budget */}
+      <GlassCard className="p-5 space-y-4" glowColor="cyan">
+        <SectionHeader
+          title="Visual Effects & GPU Rendering Budget"
+          subtitle="Strict performance budget controls: toggle 3D scene, ambient light mesh, and cursor spotlight to protect video throughput."
+          icon={<Sparkles className="w-4 h-4 text-cyan-400" />}
+          badge={`FX: ${effectsQuality.toUpperCase()}`}
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            onClick={() => setEffectsQuality("high")}
+            className={`p-3.5 rounded-xl border text-left transition relative overflow-hidden ${
+              effectsQuality === "high"
+                ? "bg-cyan-950/40 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400"
+                : "bg-slate-900/40 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-bold text-xs uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> High (Cinematic)
+              </span>
+              {effectsQuality === "high" && (
+                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]" />
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 leading-snug">
+              Interactive 3D low-poly traffic scene, dynamic ambient mesh blobs, pointer spotlight, and neon edge glow.
+            </p>
+          </button>
+
+          <button
+            onClick={() => setEffectsQuality("low")}
+            className={`p-3.5 rounded-xl border text-left transition relative overflow-hidden ${
+              effectsQuality === "low"
+                ? "bg-amber-950/40 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)] ring-1 ring-amber-400"
+                : "bg-slate-900/40 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-bold text-xs uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" /> Low (Balanced)
+              </span>
+              {effectsQuality === "low" && (
+                <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 leading-snug">
+              2D schematic hero fallback, static ambient gradient, limited blur backdrops. Ideal for laptops.
+            </p>
+          </button>
+
+          <button
+            onClick={() => setEffectsQuality("off")}
+            className={`p-3.5 rounded-xl border text-left transition relative overflow-hidden ${
+              effectsQuality === "off"
+                ? "bg-emerald-950/40 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400"
+                : "bg-slate-900/40 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-bold text-xs uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5" /> Off (Zero WebGL)
+              </span>
+              {effectsQuality === "off" && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 leading-snug">
+              Flat solid panels, zero 3D/canvas effects, no pointer spotlight. Minimal battery & CPU consumption.
+            </p>
+          </button>
+        </div>
+
+        {/* Telemetry and Hardware Environment */}
+        <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[11px] flex flex-wrap items-center justify-between gap-3 text-slate-400">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Detected CPU Cores: <strong className="text-slate-200 font-mono">{cores}</strong></span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Eye className="w-3.5 h-3.5 text-amber-400" />
+            <span>Reduced Motion Preference: <strong className="text-slate-200 font-mono">{prefersReduced ? "Active (Reduced)" : "Standard"}</strong></span>
+          </div>
+          <div className="text-slate-500 text-[10px] font-mono">
+            Auto-throttles to 30 FPS when visible; completely halts when tab is backgrounded.
+          </div>
+        </div>
+      </GlassCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Master Pipeline Parameters */}
@@ -97,11 +204,11 @@ export const SettingsView: React.FC = () => {
         {/* Right: Evidence Retention & Security */}
         <div className="space-y-6">
           {/* Hardware Concurrency & Resource Status */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 text-xs shadow-xl">
-            <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-emerald-400" />
-              <span>Multi-Camera Concurrency & Load</span>
-            </h3>
+          <GlassCard className="p-5 space-y-3 text-xs" glowColor="cyan">
+            <SectionHeader
+              title="Multi-Camera Concurrency & Load"
+              icon={<Cpu className="w-4 h-4 text-emerald-400" />}
+            />
 
             <div className="space-y-2 font-mono text-[11px] text-slate-300">
               <div className="flex justify-between py-1 border-b border-slate-800">
@@ -116,20 +223,20 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3 bg-slate-950 rounded-xl text-slate-400 text-[11px] space-y-1">
+            <div className="p-3 bg-slate-950/80 rounded-xl text-slate-400 text-[11px] space-y-1 border border-slate-800/80">
               <div className="font-bold text-slate-300">Hardware Contention Notice:</div>
               <p>
                 The system supports up to 4 concurrent camera sessions. To preserve real-time frame rates and avoid GPU memory exhaustion, a 5th concurrent session is strictly rejected with HTTP 409 Conflict.
               </p>
             </div>
-          </div>
+          </GlassCard>
 
           {/* Evidence Storage & Retention Policy */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 text-xs shadow-xl">
-            <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-              <HardDrive className="w-4 h-4 text-sky-400" />
-              <span>Evidence Storage & Auto-Pruning</span>
-            </h3>
+          <GlassCard className="p-5 space-y-3 text-xs" glowColor="cyan">
+            <SectionHeader
+              title="Evidence Storage & Auto-Pruning"
+              icon={<HardDrive className="w-4 h-4 text-sky-400" />}
+            />
 
             <div className="space-y-3">
               <div>
@@ -144,7 +251,7 @@ export const SettingsView: React.FC = () => {
                   step="1"
                   value={retentionDays}
                   onChange={(e) => setRetentionDays(parseInt(e.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                 />
               </div>
 
@@ -160,30 +267,30 @@ export const SettingsView: React.FC = () => {
                   step="0.5"
                   value={maxStorageGB}
                   onChange={(e) => setMaxStorageGB(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                 />
               </div>
 
-              <div className="p-2.5 bg-slate-950 rounded-xl text-[11px] text-slate-400">
-                Snapshots and H.264 clips in <code className="text-sky-300">data/incidents/</code> older than {retentionDays} days or exceeding {maxStorageGB} GB are auto-pruned.
+              <div className="p-2.5 bg-slate-950/80 rounded-xl text-[11px] text-slate-400 border border-slate-800/80">
+                Snapshots and H.264 clips in <code className="text-cyan-300">data/incidents/</code> older than {retentionDays} days or exceeding {maxStorageGB} GB are auto-pruned.
               </div>
             </div>
-          </div>
+          </GlassCard>
 
           {/* Automated Incident Alert Dispatch Channels */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 text-xs shadow-xl">
+          <GlassCard className="p-5 space-y-4 text-xs" glowColor="crimson">
             <div className="flex items-center justify-between">
               <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                 <Bell className="w-4 h-4 text-rose-400" />
                 <span>Automated Incident Alert Dispatch</span>
               </h3>
-              <span className="font-mono text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+              <span className="font-mono text-[10px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                 Background Queue
               </span>
             </div>
 
             {/* Cooldown setting */}
-            <div className="p-3 bg-slate-950 rounded-xl space-y-2 border border-slate-800">
+            <div className="p-3 bg-slate-950/80 rounded-xl space-y-2 border border-slate-800">
               <div className="flex items-center justify-between">
                 <span className="text-slate-300 font-bold flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
@@ -289,14 +396,14 @@ export const SettingsView: React.FC = () => {
                 );
               })}
             </div>
-          </div>
+          </GlassCard>
 
           {/* Security & Optional Bearer Token */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 text-xs shadow-xl">
-            <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-              <Key className="w-4 h-4 text-amber-400" />
-              <span>API Authorization Bearer Token</span>
-            </h3>
+          <GlassCard className="p-5 space-y-3 text-xs" glowColor="cyan">
+            <SectionHeader
+              title="API Authorization Bearer Token"
+              icon={<Key className="w-4 h-4 text-amber-400" />}
+            />
 
             <div className="space-y-2">
               <p className="text-[11px] text-slate-400">
@@ -309,14 +416,15 @@ export const SettingsView: React.FC = () => {
                   placeholder="Enter API Bearer Token..."
                   value={apiToken}
                   onChange={(e) => setApiToken(e.target.value)}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                  className="flex-1 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 />
-                <button
+                <GlowButton
                   onClick={handleSaveToken}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs"
+                  variant="primary"
+                  className="px-4 py-2 font-bold text-xs"
                 >
                   Save
-                </button>
+                </GlowButton>
               </div>
 
               {tokenSaved && (
@@ -325,7 +433,7 @@ export const SettingsView: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </GlassCard>
         </div>
       </div>
     </div>

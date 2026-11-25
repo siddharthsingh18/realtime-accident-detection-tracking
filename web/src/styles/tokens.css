@@ -1,0 +1,83 @@
+/**
+ * Cinematic Traffic Control Room - Design Tokens
+ * Variables define colors, lighting, surfaces, glassmorphism, and motion.
+ */
+
+:root {
+  /* Surface colors - Dark Control Room (Default) */
+  --bg-base: #030712;
+  --bg-surface: #0b1120;
+  --bg-surface-glass: rgba(11, 17, 32, 0.72);
+  --bg-surface-glass-subtle: rgba(15, 23, 42, 0.55);
+  --bg-surface-glass-solid: rgba(15, 23, 42, 0.88);
+
+  /* Glass borders & highlights */
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glass-highlight: rgba(0, 240, 255, 0.25);
+  --border-glass-subtle: rgba(100, 116, 139, 0.2);
+  --inner-highlight: inset 0 1px 1px 0 rgba(255, 255, 255, 0.1);
+
+  /* Brand Accents - Neon Cyan & Electric Blue */
+  --accent-cyan: #00f0ff;
+  --accent-cyan-dim: rgba(0, 240, 255, 0.15);
+  --accent-cyan-glow: 0 0 20px rgba(0, 240, 255, 0.45);
+  --accent-blue: #0284c7;
+  --accent-blue-dim: rgba(2, 132, 199, 0.15);
+
+  /* State Colors */
+  --color-accident: #ef4444;
+  --color-critical-glow: 0 0 25px rgba(239, 68, 68, 0.55);
+  --color-maintained: #f59e0b;
+  --color-warning-glow: 0 0 20px rgba(245, 158, 11, 0.4);
+  --color-vehicle: #38bdf8;
+  --color-safe: #10b981;
+  --color-safe-glow: 0 0 20px rgba(16, 185, 129, 0.4);
+
+  /* Typography Colors */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-cyan: #38bdf8;
+
+  /* Shadows */
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+
+  /* Motion & Easing Tokens */
+  --motion-fast: 150ms;
+  --motion-normal: 250ms;
+  --motion-slow: 400ms;
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Spotlight defaults */
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+}
+
+/* Light Theme Variant */
+html:not(.dark) {
+  --bg-base: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-surface-glass: rgba(255, 255, 255, 0.82);
+  --bg-surface-glass-subtle: rgba(248, 250, 252, 0.7);
+  --bg-surface-glass-solid: rgba(255, 255, 255, 0.95);
+
+  --border-glass: rgba(15, 23, 42, 0.1);
+  --border-glass-highlight: rgba(2, 132, 199, 0.35);
+  --border-glass-subtle: rgba(148, 163, 184, 0.25);
+  --inner-highlight: inset 0 1px 1px 0 rgba(255, 255, 255, 0.8);
+
+  --accent-cyan: #0284c7;
+  --accent-cyan-dim: rgba(2, 132, 199, 0.12);
+  --accent-cyan-glow: 0 0 15px rgba(2, 132, 199, 0.25);
+  --accent-blue: #0369a1;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-cyan: #0284c7;
+
+  --shadow-glass: 0 8px 30px 0 rgba(15, 23, 42, 0.08);
+  --shadow-elevated: 0 16px 36px -10px rgba(15, 23, 42, 0.12);
+}

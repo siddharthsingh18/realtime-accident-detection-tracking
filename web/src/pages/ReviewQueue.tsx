@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../store/useSessionStore";
 import { api } from "../api/client";
 import { IncidentItem } from "../api/types";
+import { GlassCard } from "../components/ui/GlassCard";
 import {
   Download,
   Filter,
   Search,
   ChevronRight,
   Info,
+  ShieldAlert,
 } from "lucide-react";
 
 export const ReviewQueue: React.FC = () => {
@@ -109,17 +111,18 @@ export const ReviewQueue: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Header & Controls */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-4 rounded-2xl backdrop-blur">
+      <GlassCard className="p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4" glowColor="cyan">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-extrabold tracking-tight uppercase">
-              Incident Review Queue
+            <h2 className="text-sm font-extrabold tracking-tight uppercase text-slate-100 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-cyan-400" />
+              <span>Incident Review Queue</span>
             </h2>
             <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
               {total} Total
             </span>
           </div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-400 mt-0.5">
             Keyboard First: J/K to move, T = True, F = False, U = Unsure, Enter = Open.
           </p>
         </div>
@@ -130,13 +133,13 @@ export const ReviewQueue: React.FC = () => {
               <span className="text-xs font-mono text-slate-400">{selectedIds.size} selected</span>
               <button
                 onClick={() => handleBulkVerdict("true_accident")}
-                className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold"
+                className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition shadow-sm"
               >
                 Mark Accident
               </button>
               <button
                 onClick={() => handleBulkVerdict("false_alarm")}
-                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
               >
                 Mark False Alarm
               </button>
@@ -146,18 +149,18 @@ export const ReviewQueue: React.FC = () => {
           <a
             href={`${import.meta.env.VITE_API_URL || ""}/api/incidents/export.csv`}
             download
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition shadow-sm"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5 text-cyan-400" />
             <span>Export CSV</span>
           </a>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-900/50 border border-slate-800 rounded-xl text-xs">
+      <GlassCard className="p-3 flex flex-wrap items-center gap-2 text-xs" glowColor="cyan">
         <div className="flex items-center gap-1.5 text-slate-400 mr-2">
-          <Filter className="w-3.5 h-3.5" />
+          <Filter className="w-3.5 h-3.5 text-cyan-400" />
           <span>Filters:</span>
         </div>
 
@@ -165,7 +168,7 @@ export const ReviewQueue: React.FC = () => {
         <select
           value={verdictFilter}
           onChange={(e) => setVerdictFilter(e.target.value)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none"
+          className="bg-slate-800/90 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none focus:border-cyan-500"
         >
           <option value="">All Verdicts</option>
           <option value="unreviewed">Unreviewed Only</option>
@@ -178,7 +181,7 @@ export const ReviewQueue: React.FC = () => {
         <select
           value={originFilter}
           onChange={(e) => setOriginFilter(e.target.value)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none"
+          className="bg-slate-800/90 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none focus:border-cyan-500"
         >
           <option value="">All Origins</option>
           <option value="detector">YOLO Detector</option>
@@ -190,7 +193,7 @@ export const ReviewQueue: React.FC = () => {
         <select
           value={cameraFilter}
           onChange={(e) => setCameraFilter(e.target.value)}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none"
+          className="bg-slate-800/90 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 focus:outline-none focus:border-cyan-500"
         >
           <option value="">All Cameras</option>
           <option value="cam_01">Camera 01</option>
@@ -207,13 +210,13 @@ export const ReviewQueue: React.FC = () => {
             placeholder="Search incident ID or notes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1 text-slate-200 placeholder-slate-500 text-xs focus:outline-none"
+            className="w-full bg-slate-800/90 border border-slate-700 rounded-lg pl-8 pr-3 py-1 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-500"
           />
         </div>
-      </div>
+      </GlassCard>
 
       {/* Incidents Virtual Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <GlassCard className="overflow-hidden p-0" glowColor="cyan">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/80 border-b border-slate-800 font-mono text-[11px] text-slate-400 uppercase tracking-wider">
@@ -226,7 +229,7 @@ export const ReviewQueue: React.FC = () => {
                       if (e.target.checked) setSelectedIds(new Set(incidents.map((i) => i.id)));
                       else setSelectedIds(new Set());
                     }}
-                    className="rounded border-slate-700 bg-slate-800 text-emerald-500"
+                    className="rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-cyan-400"
                   />
                 </th>
                 <th className="p-3">Incident</th>
@@ -241,13 +244,13 @@ export const ReviewQueue: React.FC = () => {
             <tbody className="divide-y divide-slate-800/60 font-sans">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-slate-500">
+                  <td colSpan={8} className="p-12 text-center text-slate-500 font-mono">
                     Loading incident queue...
                   </td>
                 </tr>
               ) : incidents.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-slate-500">
+                  <td colSpan={8} className="p-12 text-center text-slate-500 font-mono">
                     No incidents matching selected filters.
                   </td>
                 </tr>
@@ -263,7 +266,7 @@ export const ReviewQueue: React.FC = () => {
                   );
                   if (inc.verdict === "true_accident") {
                     verdictBadge = (
-                      <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-red-950 text-red-300 border border-red-800">
+                      <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-red-950 text-red-300 border border-red-800 shadow-[0_0_8px_rgba(239,68,68,0.2)]">
                         True Accident
                       </span>
                     );
@@ -310,7 +313,7 @@ export const ReviewQueue: React.FC = () => {
                       onDoubleClick={() => navigate(`/incidents/${inc.id}`)}
                       className={`cursor-pointer transition ${
                         isCurrent
-                          ? "bg-slate-800/90 ring-1 ring-inset ring-emerald-500"
+                          ? "bg-slate-800/90 ring-1 ring-inset ring-cyan-400 shadow-[inset_0_0_12px_rgba(6,182,212,0.15)]"
                           : "hover:bg-slate-800/40"
                       }`}
                     >
@@ -324,18 +327,23 @@ export const ReviewQueue: React.FC = () => {
                             else next.delete(inc.id);
                             setSelectedIds(next);
                           }}
-                          className="rounded border-slate-700 bg-slate-800 text-emerald-500"
+                          className="rounded border-slate-700 bg-slate-800 text-cyan-500 focus:ring-cyan-400"
                         />
                       </td>
 
                       <td className="p-3">
-                        <div className="font-bold text-slate-100">{inc.id}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">
+                        <div className="font-bold text-slate-100 flex items-center gap-1.5">
+                          <span>{inc.id}</span>
+                          {inc.peak_conf > 0.8 && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_4px_#f43f5e]" />
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
                           Zone #{inc.zone_id} • {inc.involved_vehicle_ids.length} vehicle(s)
                         </div>
                       </td>
 
-                      <td className="p-3 font-mono text-slate-300 uppercase">{inc.camera_id}</td>
+                      <td className="p-3 font-mono text-cyan-300 uppercase">{inc.camera_id}</td>
 
                       <td className="p-3 font-mono text-slate-300">
                         {new Date(inc.confirmed_at).toLocaleString()}
@@ -356,7 +364,7 @@ export const ReviewQueue: React.FC = () => {
                               e.stopPropagation();
                               applyVerdict(inc.id, "false_alarm");
                             }}
-                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold"
+                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold transition"
                             title="Mark as False Alarm (F)"
                           >
                             False
@@ -366,7 +374,7 @@ export const ReviewQueue: React.FC = () => {
                               e.stopPropagation();
                               applyVerdict(inc.id, "true_accident");
                             }}
-                            className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-[10px] text-white font-bold"
+                            className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-[10px] text-white font-bold transition shadow-sm"
                             title="Mark as True Accident (T)"
                           >
                             Crash
@@ -376,7 +384,7 @@ export const ReviewQueue: React.FC = () => {
                               e.stopPropagation();
                               navigate(`/incidents/${inc.id}`);
                             }}
-                            className="p-1 text-slate-400 hover:text-white"
+                            className="p-1 text-slate-400 hover:text-cyan-400 transition"
                             title="Inspect details (Enter)"
                           >
                             <ChevronRight className="w-4 h-4" />
@@ -390,7 +398,7 @@ export const ReviewQueue: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      </GlassCard>
 
       <div className="text-[11px] text-slate-400 flex items-center gap-1.5 p-2">
         <Info className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />

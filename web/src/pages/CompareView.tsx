@@ -7,6 +7,8 @@ import {
   Play,
   Info,
 } from "lucide-react";
+import { GlassCard } from "../components/ui/GlassCard";
+import { GlowButton } from "../components/ui/GlowButton";
 
 export const CompareView: React.FC = () => {
   const [source, setSource] = useState("sample1");
@@ -43,45 +45,43 @@ export const CompareView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl backdrop-blur flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <GitCompare className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wide">
-              A/B Pipeline Comparison
-            </h2>
+      <GlassCard variant="cyan" glow={true} className="p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <GitCompare className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-sm sm:text-base font-extrabold font-display tracking-wider uppercase text-slate-100">
+                A/B PIPELINE COMPARISON ENGINE
+              </h2>
+            </div>
+            <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+              Compare two detection configurations side-by-side on identical video footage.
+            </p>
           </div>
-          <p className="text-[11px] text-slate-400">
-            Compare two detection configurations side-by-side on identical video footage.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <select
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            className="bg-slate-800 border border-slate-700 text-xs rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
-          >
-            <option value="sample1">Sample 1 (Highway Incident)</option>
-            <option value="sample2">Sample 2 (Multi-Car Incident)</option>
-          </select>
+          <div className="flex items-center gap-3">
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              className="bg-slate-950/80 border border-slate-700 text-xs rounded-xl px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-cyan-400 shadow-inner"
+            >
+              <option value="sample1">Sample 1 (Highway Incident)</option>
+              <option value="sample2">Sample 2 (Multi-Car Incident)</option>
+            </select>
 
-          <button
-            onClick={handleRunCompare}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg disabled:opacity-50"
-          >
-            {loading ? (
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Play className="w-4 h-4 fill-white" />
-            )}
-            <span>{loading ? "Running Comparison..." : "Execute A/B Simulation"}</span>
-          </button>
+            <GlowButton
+              onClick={handleRunCompare}
+              disabled={loading}
+              variant="primary"
+              icon={<Play className="w-4 h-4 fill-current" />}
+            >
+              {loading ? "Benchmarking..." : "Run Benchmark"}
+            </GlowButton>
+          </div>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Configuration Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

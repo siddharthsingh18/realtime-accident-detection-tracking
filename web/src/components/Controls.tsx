@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from "react";
 import { Play, Square, Pause, RotateCcw } from "lucide-react";
 import { useSessionStore } from "../store/useSessionStore";
+import { GlowButton } from "./ui/GlowButton";
 
 interface Props {
   onStart: () => void;
@@ -32,7 +33,6 @@ export const Controls: React.FC<Props> = ({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if focus is in an input or select
       const activeEl = document.activeElement;
       if (
         activeEl &&
@@ -67,80 +67,80 @@ export const Controls: React.FC<Props> = ({
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       {canStart && (
-        <button
+        <GlowButton
           onClick={onStart}
           disabled={!canStart}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          variant="primary"
+          icon={<Play className="w-4 h-4 fill-current" />}
         >
-          <Play className="w-4 h-4 fill-white" />
-          <span>Start Stream</span>
-        </button>
+          Start Stream
+        </GlowButton>
       )}
 
       {isConnecting && (
-        <button
+        <GlowButton
           disabled
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-blue-600/60 text-white opacity-75 cursor-not-allowed"
+          variant="secondary"
+          icon={<span className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />}
         >
-          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          <span>Connecting...</span>
-        </button>
+          Connecting...
+        </GlowButton>
       )}
 
       {isRunning && (
-        <button
+        <GlowButton
           onClick={onPause}
           disabled={!canPause}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-sm bg-amber-600 hover:bg-amber-500 text-white shadow transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400"
+          variant="warning"
+          icon={<Pause className="w-4 h-4" />}
           title="Pause stream (Space)"
         >
-          <Pause className="w-4 h-4" />
-          <span>Pause</span>
-        </button>
+          Pause
+        </GlowButton>
       )}
 
       {isPaused && (
-        <button
+        <GlowButton
           onClick={onResume}
           disabled={!canResume}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          variant="primary"
+          icon={<Play className="w-4 h-4 fill-current" />}
           title="Resume stream (Space)"
         >
-          <Play className="w-4 h-4 fill-white" />
-          <span>Resume</span>
-        </button>
+          Resume
+        </GlowButton>
       )}
 
       {canStop && (
-        <button
+        <GlowButton
           onClick={onStop}
           disabled={!canStop}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-sm bg-rose-600 hover:bg-rose-500 text-white shadow transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-rose-400"
+          variant="critical"
+          icon={<Square className="w-4 h-4 fill-current" />}
           title="Stop pipeline (Esc)"
         >
-          <Square className="w-4 h-4 fill-white" />
-          <span>Stop</span>
-        </button>
+          Stop
+        </GlowButton>
       )}
 
       {isStopping && (
-        <button
+        <GlowButton
           disabled
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold text-sm bg-rose-900/50 text-rose-200 cursor-not-allowed"
+          variant="critical"
+          icon={<span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
         >
-          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          <span>Stopping...</span>
-        </button>
+          Stopping...
+        </GlowButton>
       )}
 
       {isFinished && onReset && (
-        <button
+        <GlowButton
           onClick={onReset}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg font-medium text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+          variant="secondary"
+          icon={<RotateCcw className="w-4 h-4" />}
         >
-          <RotateCcw className="w-4 h-4" />
-          <span>Reset Session</span>
-        </button>
+          Reset Session
+        </GlowButton>
       )}
     </div>
   );

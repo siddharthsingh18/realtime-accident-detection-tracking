@@ -16,6 +16,7 @@ import {
   Info,
   CheckCircle,
 } from "lucide-react";
+import { GlassCard } from "../components/ui/GlassCard";
 
 export const AnalyticsView: React.FC = () => {
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -32,14 +33,23 @@ export const AnalyticsView: React.FC = () => {
   }, [cameraFilter]);
 
   if (loading) {
-    return <div className="p-12 text-center text-xs text-slate-500 font-mono">Loading analytics...</div>;
+    return (
+      <div className="space-y-4 max-w-7xl mx-auto">
+        <div className="h-20 rounded-2xl bg-slate-900/60 border border-slate-800 skeleton-shimmer" />
+        <div className="h-64 rounded-2xl bg-slate-900/60 border border-slate-800 skeleton-shimmer" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-60 rounded-2xl bg-slate-900/60 border border-slate-800 skeleton-shimmer" />
+          <div className="h-60 rounded-2xl bg-slate-900/60 border border-slate-800 skeleton-shimmer" />
+        </div>
+      </div>
+    );
   }
 
   if (!stats) {
     return (
-      <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-        <p className="text-xs text-slate-400">No incident statistics available yet.</p>
-      </div>
+      <GlassCard variant="default" className="p-8 text-center max-w-7xl mx-auto">
+        <p className="text-xs font-mono text-slate-400">No incident statistics available yet.</p>
+      </GlassCard>
     );
   }
 
@@ -56,35 +66,37 @@ export const AnalyticsView: React.FC = () => {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Top Header & Filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-4 rounded-2xl backdrop-blur">
-        <div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-sm font-extrabold tracking-tight uppercase">
-              Incident Analytics & Operator Verdicts
-            </h2>
+      <GlassCard variant="cyan" glow={true} className="p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-sm sm:text-base font-extrabold font-display tracking-wider uppercase text-slate-100">
+                INCIDENT TELEMETRY & AUDIT ANALYTICS
+              </h2>
+            </div>
+            <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+              Historical incident distributions and operator review statistics from SQLite database.
+            </p>
           </div>
-          <p className="text-[11px] text-slate-400">
-            Real incident distributions and operator review outcomes. Derived strictly from database records.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2 text-xs">
-          <select
-            value={cameraFilter}
-            onChange={(e) => setCameraFilter(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none"
-          >
-            <option value="">All Cameras</option>
-            <option value="cam_01">Camera 01</option>
-            <option value="cam_02">Camera 02</option>
-            <option value="cam_03">Camera 03</option>
-            <option value="cam_04">Camera 04</option>
-          </select>
+          <div className="flex items-center gap-2 text-xs">
+            <select
+              value={cameraFilter}
+              onChange={(e) => setCameraFilter(e.target.value)}
+              className="bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-1.5 text-slate-200 font-mono text-xs focus:outline-none focus:border-cyan-400 shadow-inner"
+            >
+              <option value="">All Cameras</option>
+              <option value="cam_01">Camera 01</option>
+              <option value="cam_02">Camera 02</option>
+              <option value="cam_03">Camera 03</option>
+              <option value="cam_04">Camera 04</option>
+            </select>
+          </div>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Operator-Reviewed Outcomes Card */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">

@@ -32,6 +32,9 @@ import { AlertDrawer } from "./AlertDrawer";
 import { ToastContainer } from "./ToastContainer";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardHelpModal } from "./KeyboardHelpModal";
+import { AmbientMeshBackground } from "./ui/AmbientMeshBackground";
+import { RadarStatusRing } from "./ui/RadarStatusRing";
+import { motion } from "framer-motion";
 
 export const AppShell: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -52,7 +55,20 @@ export const AppShell: React.FC = () => {
     setKeyboardHelpOpen,
     addToast,
     activeCameraId,
+    effectsQuality,
+    setEffectsQuality,
   } = useSessionStore();
+
+  // Sync theme to root element
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+    }
+  }, [theme]);
 
   const [utcTime, setUtcTime] = useState("");
   const [localTime, setLocalTime] = useState("");
@@ -135,7 +151,7 @@ export const AppShell: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
+      className={`min-h-screen flex flex-col font-sans transition-colors duration-200 relative ${
         theme === "dark"
           ? "bg-slate-950 text-slate-100"
           : theme === "high-contrast"
@@ -143,35 +159,64 @@ export const AppShell: React.FC = () => {
           : "bg-slate-100 text-slate-900"
       }`}
     >
+      {/* Dynamic Ambient Mesh & Grid Background */}
+      <AmbientMeshBackground />
+
       {/* Top Bar */}
-      <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md">
-            <Shield className="w-4 h-4" />
-          </div>
+      <header className="border-b border-slate-800 bg-slate-950/85 backdrop-blur-xl sticky top-0 z-30 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-4 shadow-xl relative overflow-hidden">
+        {/* Subtle Scanlines Overlay */}
+        <div className="absolute inset-0 scanlines opacity-15 pointer-events-none" />
+
+        <div className="flex items-center gap-3 relative z-10">
+          <RadarStatusRing status="normal">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-700 text-slate-950 shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+              <Shield className="w-4 h-4 fill-slate-950 stroke-slate-950" />
+            </div>
+          </RadarStatusRing>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xs sm:text-sm font-extrabold tracking-tight uppercase">
+              <h1 className="text-xs sm:text-sm font-extrabold font-display tracking-wider uppercase text-slate-100">
                 {t("app_title")}
               </h1>
               {isMock && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider bg-amber-950 text-amber-300 border border-amber-600 animate-pulse">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black tracking-wider bg-amber-950 text-amber-300 border border-amber-600 animate-pulse">
                   MOCK DATA
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-slate-400 hidden md:block">
+            <p className="text-[10px] text-slate-400 font-mono hidden md:block">
               {t("app_subtitle")}
             </p>
           </div>
         </div>
 
         {/* Global Controls & Tools */}
-        <div className="flex items-center gap-1.5 sm:gap-2 text-xs">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs relative z-10">
+          {/* Visual Effects Quality Toggle */}
+          <button
+            onClick={() => {
+              const next = effectsQuality === "high" ? "low" : effectsQuality === "low" ? "off" : "high";
+              setEffectsQuality(next);
+            }}
+            className="px-2 py-1 rounded-lg border border-slate-700 bg-slate-800/90 text-[11px] font-mono font-bold text-cyan-300 hover:text-white hover:border-cyan-500/50 flex items-center gap-1.5 transition shadow-sm"
+            title={`Visual Effects Mode: ${effectsQuality.toUpperCase()}. Click to cycle (High / Low / Off)`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                effectsQuality === "high"
+                  ? "bg-cyan-400 animate-pulse shadow-[0_0_6px_rgba(0,240,255,0.8)]"
+                  : effectsQuality === "low"
+                  ? "bg-amber-400"
+                  : "bg-slate-500"
+              }`}
+            />
+            <span>FX: {effectsQuality.toUpperCase()}</span>
+          </button>
+
           {/* Command Palette Trigger */}
           <button
             onClick={() => setCommandPaletteOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white hover:border-cyan-500/40 transition"
             title="Open Command Palette (⌘K)"
           >
             <Command className="w-3.5 h-3.5 text-slate-400" />
@@ -181,7 +226,7 @@ export const AppShell: React.FC = () => {
           {/* Keyboard Map Trigger */}
           <button
             onClick={() => setKeyboardHelpOpen(true)}
-            className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white transition"
             title="Keyboard Shortcuts Map (?)"
           >
             <HelpCircle className="w-4 h-4" />
@@ -190,12 +235,12 @@ export const AppShell: React.FC = () => {
           {/* Alert Bell */}
           <button
             onClick={() => setAlertDrawerOpen(true)}
-            className="relative p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition"
+            className="relative p-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition"
             title="Open Unreviewed Alerts Drawer"
           >
             <Bell className="w-4 h-4" />
             {unreviewedCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white font-mono text-[9px] font-black flex items-center justify-center animate-pulse">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white font-mono text-[9px] font-black flex items-center justify-center animate-ping">
                 {unreviewedCount > 9 ? "9+" : unreviewedCount}
               </span>
             )}
@@ -219,7 +264,7 @@ export const AppShell: React.FC = () => {
             onClick={() => setIsMock(!isMock)}
             className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition ${
               isMock
-                ? "bg-amber-950 text-amber-300 border-amber-600"
+                ? "bg-amber-950 text-amber-300 border-amber-600 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
                 : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200"
             }`}
             title="Toggle Standalone Mock Mode"
@@ -248,9 +293,9 @@ export const AppShell: React.FC = () => {
       </header>
 
       {/* Main Body with Left Nav & Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative z-10">
         {/* Left Navigation */}
-        <aside className="w-14 sm:w-56 border-r border-slate-800 bg-slate-900/60 backdrop-blur flex flex-col justify-between py-3 px-2 sm:px-3">
+        <aside className="w-14 sm:w-56 border-r border-slate-800 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between py-3 px-2 sm:px-3 shadow-2xl">
           <nav className="space-y-1">
             {navItems.map((item) => {
               const isActive = location.pathname === item.to || (item.to.startsWith("/camera") && location.pathname.startsWith("/camera"));
@@ -258,28 +303,38 @@ export const AppShell: React.FC = () => {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold font-display tracking-wide uppercase transition-all duration-200 ${
                     isActive
-                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/40"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                      ? "bg-cyan-500/15 text-cyan-300 border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.25)] font-bold"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
                   }`}
                 >
-                  {item.icon}
+                  <span className={isActive ? "text-cyan-400 drop-shadow-[0_0_8px_rgba(0,240,255,0.6)]" : ""}>
+                    {item.icon}
+                  </span>
                   <span className="hidden sm:inline">{item.label}</span>
                 </NavLink>
               );
             })}
           </nav>
 
-          <div className="hidden sm:block p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-[10px] text-slate-500 font-mono">
-            <div>Fixed CCTV Operator View</div>
-            <div className="text-slate-400 font-bold mt-0.5">Press ? for keys</div>
+          <div className="hidden sm:block p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-[10px] text-slate-500 font-mono shadow-inner">
+            <div className="text-cyan-400 font-bold tracking-wider">COMMAND NODE 01</div>
+            <div className="text-slate-400 mt-0.5">Press ? for shortcuts</div>
           </div>
         </aside>
 
-        {/* Content View */}
+        {/* Content View with Page Transition */}
         <main className={`flex-1 overflow-y-auto ${density === "compact" ? "p-2 sm:p-4" : "p-4 sm:p-6"}`}>
-          <Outlet />
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="w-full h-full"
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
 

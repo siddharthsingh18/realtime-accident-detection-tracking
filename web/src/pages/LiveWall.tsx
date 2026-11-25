@@ -16,7 +16,10 @@ import {
   AlertOctagon,
   Play,
   Pause,
+  Monitor,
 } from "lucide-react";
+import { GlassCard } from "../components/ui/GlassCard";
+import { VideoHudOverlay } from "../components/ui/VideoHudOverlay";
 
 export const LiveWall: React.FC = () => {
   const navigate = useNavigate();
@@ -87,84 +90,89 @@ export const LiveWall: React.FC = () => {
     });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-7xl mx-auto">
       {/* Wall Header & Layout Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 p-3 rounded-2xl backdrop-blur">
-        <div>
-          <h2 className="text-sm font-extrabold tracking-tight uppercase">
-            Surveillance Grid Wall
-          </h2>
-          <p className="text-[11px] text-slate-400">
-            Real-time multi-camera operations. Double-click or press Enter to inspect.
-          </p>
-        </div>
+      <GlassCard variant="cyan" glow={true} className="p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Monitor className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-sm sm:text-base font-extrabold font-display tracking-wider uppercase text-slate-100">
+                SURVEILLANCE GRID WALL
+              </h2>
+            </div>
+            <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+              Multi-camera tactical surveillance. Double-click or press Enter to isolate camera.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {/* Alerts First Toggle */}
-          <button
-            onClick={() => setAlertsFirst(!alertsFirst)}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition ${
-              alertsFirst
-                ? "bg-red-950/60 text-red-300 border-red-800"
-                : "bg-slate-800 text-slate-400 border-slate-700 hover:text-white"
-            }`}
-            title="Float cameras with active confirmed alerts to the top"
-          >
-            <ArrowUpDown className="w-3.5 h-3.5" />
-            <span>Alerts First: {alertsFirst ? "ON" : "OFF"}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Alerts First Toggle */}
+            <button
+              onClick={() => setAlertsFirst(!alertsFirst)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-display uppercase tracking-wider font-semibold flex items-center gap-1.5 transition ${
+                alertsFirst
+                  ? "bg-rose-950/80 text-rose-300 border-rose-500/60 shadow-[0_0_12px_rgba(239,68,68,0.3)]"
+                  : "bg-slate-900/80 text-slate-400 border-slate-700 hover:text-white"
+              }`}
+              title="Float cameras with active confirmed alerts to the top"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" />
+              <span>Priority Sort: {alertsFirst ? "ALERTS" : "DEFAULT"}</span>
+            </button>
 
-          {/* Max Active Feeds Limit Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
-            <span className="text-[11px] text-slate-400 font-semibold px-1">Max Active:</span>
-            {[1, 2, 4].map((num) => (
+            {/* Max Active Feeds Limit Selector */}
+            <div className="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-mono">
+              <span className="text-[10px] text-slate-400 font-bold px-1 uppercase">Concurrency:</span>
+              {[1, 2, 4].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setMaxActiveFeeds(num)}
+                  className={`px-2 py-0.5 rounded-lg font-bold text-xs transition ${
+                    maxActiveFeeds === num
+                      ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(0,240,255,0.4)]"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title={`Limit to ${num} active concurrent stream${num > 1 ? "s" : ""}`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+
+            {/* Layout Grid Buttons */}
+            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
               <button
-                key={num}
-                onClick={() => setMaxActiveFeeds(num)}
-                className={`px-2 py-0.5 rounded font-bold text-xs transition ${
-                  maxActiveFeeds === num
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white"
+                onClick={() => setWallLayout("1")}
+                className={`p-1.5 rounded-lg text-xs font-bold transition ${
+                  wallLayout === "1" ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(0,240,255,0.4)]" : "text-slate-400 hover:text-white"
                 }`}
-                title={`Limit to ${num} active concurrent stream${num > 1 ? "s" : ""}`}
+                title="Single Camera View (1)"
               >
-                {num}
+                <Square className="w-3.5 h-3.5" />
               </button>
-            ))}
-          </div>
-
-          {/* Layout Grid Buttons */}
-          <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
-            <button
-              onClick={() => setWallLayout("1")}
-              className={`p-1.5 rounded text-xs font-bold transition ${
-                wallLayout === "1" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-white"
-              }`}
-              title="Single Camera View (1)"
-            >
-              <Square className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setWallLayout("2")}
-              className={`p-1.5 rounded text-xs font-bold transition ${
-                wallLayout === "2" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-white"
-              }`}
-              title="Dual Camera View (2)"
-            >
-              <Grid2X2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setWallLayout("4")}
-              className={`p-1.5 rounded text-xs font-bold transition ${
-                wallLayout === "4" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-white"
-              }`}
-              title="Quad Grid View (4)"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
+              <button
+                onClick={() => setWallLayout("2")}
+                className={`p-1.5 rounded-lg text-xs font-bold transition ${
+                  wallLayout === "2" ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(0,240,255,0.4)]" : "text-slate-400 hover:text-white"
+                }`}
+                title="Dual Camera View (2)"
+              >
+                <Grid2X2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setWallLayout("4")}
+                className={`p-1.5 rounded-lg text-xs font-bold transition ${
+                  wallLayout === "4" ? "bg-cyan-500 text-slate-950 shadow-[0_0_10px_rgba(0,240,255,0.4)]" : "text-slate-400 hover:text-white"
+                }`}
+                title="Quad Grid View (4)"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Camera Grid Tiles */}
       <div
@@ -393,6 +401,7 @@ const CameraTile: React.FC<TileProps> = ({
       {/* Video Feed Stage */}
       <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
         <canvas ref={canvasRef} className="w-full h-full object-contain" />
+        <VideoHudOverlay cameraId={cameraId} fps={telemetry?.fps} isAlert={isConfirmedAlert} />
         {!latestFrame && !isPaused && (
           <div className="text-[11px] text-slate-500 font-mono">
             Connecting stream...

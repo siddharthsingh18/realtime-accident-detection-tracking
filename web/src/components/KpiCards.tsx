@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 import { useSessionStore } from "../store/useSessionStore";
 import { AlertCircle, Car, Cpu, Film } from "lucide-react";
 import { FpsSparkline } from "./FpsSparkline";
+import { GlassCard } from "./ui/GlassCard";
+import { RadarStatusRing } from "./ui/RadarStatusRing";
 
 export const KpiCards: React.FC = () => {
   const { telemetry, fpsHistory } = useSessionStore();
@@ -28,28 +30,34 @@ export const KpiCards: React.FC = () => {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {/* 1. Confirmed Accidents */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow-sm backdrop-blur relative overflow-hidden">
-        <div className="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+      <GlassCard
+        variant={confirmedCount && confirmedCount > 0 ? "critical" : "default"}
+        glow={Boolean(confirmedCount && confirmedCount > 0)}
+        className="p-4"
+      >
+        <div className="flex items-center justify-between text-slate-400 text-xs font-display font-bold uppercase tracking-wider mb-1">
           <span>Confirmed Accidents</span>
-          <AlertCircle
-            className={`w-4 h-4 ${
-              confirmedCount && confirmedCount > 0 ? "text-red-400" : "text-slate-500"
-            }`}
-          />
+          {confirmedCount && confirmedCount > 0 ? (
+            <RadarStatusRing status="critical">
+              <AlertCircle className="w-4 h-4 text-rose-400" />
+            </RadarStatusRing>
+          ) : (
+            <AlertCircle className="w-4 h-4 text-slate-500" />
+          )}
         </div>
         <div className="flex items-baseline gap-2">
           <span
-            className={`text-2xl sm:text-3xl font-black font-mono ${
+            className={`text-2xl sm:text-3xl font-extrabold font-mono tracking-tight ${
               confirmedCount === null
                 ? "text-slate-500"
                 : confirmedCount > 0
-                ? "text-red-400"
-                : "text-emerald-400"
+                ? "text-rose-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)] animate-pulse"
+                : "text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.4)]"
             }`}
           >
             {confirmedCount !== null ? confirmedCount : "—"}
           </span>
-          <span className="text-xs text-slate-400 font-medium">
+          <span className="text-xs text-slate-400 font-mono font-semibold">
             {confirmedCount === null
               ? "Inactive"
               : confirmedCount > 0
@@ -62,16 +70,16 @@ export const KpiCards: React.FC = () => {
             ? `${telemetry.zones.length} zone(s) in persistence tracker`
             : "No active hazard zones"}
         </div>
-      </div>
+      </GlassCard>
 
       {/* 2. Tracked Vehicles */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow-sm backdrop-blur">
-        <div className="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+      <GlassCard variant="cyan" className="p-4">
+        <div className="flex items-center justify-between text-slate-400 text-xs font-display font-bold uppercase tracking-wider mb-1">
           <span>Tracked Vehicles</span>
-          <Car className="w-4 h-4 text-blue-400" />
+          <Car className="w-4 h-4 text-cyan-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl sm:text-3xl font-black font-mono text-slate-100">
+          <span className="text-2xl sm:text-3xl font-extrabold font-mono text-cyan-400 drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">
             {inFrame !== null ? inFrame : "—"}
           </span>
           <span className="text-xs text-slate-400 font-mono">
@@ -81,61 +89,60 @@ export const KpiCards: React.FC = () => {
         <div className="mt-2 text-[11px] text-slate-400">
           BoT-SORT motion tracking active
         </div>
-      </div>
+      </GlassCard>
 
       {/* 3. Inference FPS */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow-sm backdrop-blur">
-        <div className="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+      <GlassCard variant="warning" className="p-4">
+        <div className="flex items-center justify-between text-slate-400 text-xs font-display font-bold uppercase tracking-wider mb-1">
           <span>Inference FPS</span>
           <Cpu className="w-4 h-4 text-amber-400" />
         </div>
         <div className="flex items-baseline justify-between gap-2">
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl sm:text-3xl font-black font-mono text-slate-100">
+            <span className="text-2xl sm:text-3xl font-extrabold font-mono text-amber-300 drop-shadow-[0_0_12px_rgba(245,158,11,0.4)]">
               {smoothedFps !== null ? smoothedFps : "—"}
             </span>
-            <span className="text-xs text-slate-400">fps</span>
+            <span className="text-xs text-slate-400 font-mono">fps</span>
           </div>
           <div className="pt-1">
-            <FpsSparkline data={fpsHistory} width={80} height={20} color="#38bdf8" />
+            <FpsSparkline data={fpsHistory} width={80} height={20} color="#00f0ff" />
           </div>
         </div>
         <div className="mt-2 text-[11px] text-slate-400 truncate">
           {telemetry?.fps ? `Raw: ${telemetry.fps.toFixed(1)} fps (10f avg)` : "Awaiting stream"}
         </div>
-      </div>
+      </GlassCard>
 
       {/* 4. Frame Progress */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 shadow-sm backdrop-blur">
-        <div className="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+      <GlassCard variant="default" className="p-4">
+        <div className="flex items-center justify-between text-slate-400 text-xs font-display font-bold uppercase tracking-wider mb-1">
           <span>Frame Progress</span>
           <Film className="w-4 h-4 text-indigo-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl sm:text-3xl font-black font-mono text-slate-100">
+          <span className="text-2xl sm:text-3xl font-extrabold font-mono text-slate-100">
             {currentFrame !== null ? currentFrame : "—"}
           </span>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-slate-400 font-mono font-semibold">
             {totalFrames ? `/ ${totalFrames}` : "frames"}
           </span>
         </div>
         {progressPct !== null ? (
           <div className="mt-2">
-            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-slate-950/80 rounded-full h-1.5 overflow-hidden border border-slate-800">
               <div
-                className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 h-1.5 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(0,240,255,0.6)]"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <div className="text-[10px] text-slate-400 mt-1 text-right">{progressPct}%</div>
+            <div className="text-[10px] font-mono text-cyan-400 mt-1 text-right font-bold">{progressPct}%</div>
           </div>
         ) : (
-          <div className="mt-2 text-[11px] text-slate-400">
+          <div className="mt-2 text-[11px] text-slate-400 font-mono">
             {currentFrame !== null ? "Continuous live feed" : "Not running"}
           </div>
         )}
-      </div>
+      </GlassCard>
     </div>
   );
 };
-

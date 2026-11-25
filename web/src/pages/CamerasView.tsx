@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { api } from "../api/client";
 import { CameraItem } from "../api/types";
 import { useSessionStore } from "../store/useSessionStore";
+import { GlassCard } from "../components/ui/GlassCard";
 import {
   Camera,
   MapPin,
@@ -377,19 +378,19 @@ export const CamerasView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl backdrop-blur flex items-center justify-between">
+      <GlassCard className="p-4 flex items-center justify-between" glowColor="cyan">
         <div>
           <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wide">
+            <Camera className="w-5 h-5 text-cyan-400" />
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-slate-100">
               CCTV Camera Inventory & Interactive ROI Editor
             </h2>
           </div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-400 mt-0.5">
             Draw, edit, and drag polygon vertices on frame canvas. Coordinates are normalized to survive any resolution change.
           </p>
         </div>
-      </div>
+      </GlassCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left: Camera List */}
@@ -449,7 +450,7 @@ export const CamerasView: React.FC = () => {
 
         {/* Right: Interactive Polygon Editor Canvas */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+          <GlassCard className="p-4 shadow-xl space-y-3" glowColor="cyan">
             {/* Top Editor Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
               <div>
@@ -643,10 +644,10 @@ export const CamerasView: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
+          </GlassCard>
 
           {/* CCTV Placement Map */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+          <GlassCard className="p-4 space-y-3" glowColor="cyan">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-emerald-400" />
@@ -694,7 +695,7 @@ export const CamerasView: React.FC = () => {
                 Coordinates saved as normalized percentages [0.0..1.0] survive video transcoding and camera aspect ratio scaling.
               </span>
             </div>
-          </div>
+          </GlassCard>
         </div>
       </div>
     </div>

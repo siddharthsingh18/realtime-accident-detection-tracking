@@ -18,6 +18,8 @@ import { WebcamPanel } from "../components/WebcamPanel";
 import { DemoGallery } from "../components/DemoGallery";
 import { SettingsSidebar } from "../components/SettingsSidebar";
 import { EventLog } from "../components/EventLog";
+import { VideoHudOverlay } from "../components/ui/VideoHudOverlay";
+import { GlassCard } from "../components/ui/GlassCard";
 
 import {
   Activity,
@@ -25,7 +27,6 @@ import {
   Sliders,
   ListFilter,
   Camera,
-  CheckCircle,
   AlertTriangle,
 } from "lucide-react";
 
@@ -245,19 +246,21 @@ export const FocusView: React.FC = () => {
     }
   };
 
+  const hasAccident = (telemetry?.confirmed_accidents ?? 0) > 0;
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Top Banner */}
       <AlertBanner />
 
       {/* Control Strip & Vector Layer Toggles */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 p-3 rounded-2xl backdrop-blur">
+      <GlassCard className="p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3" glowColor={hasAccident ? "crimson" : "cyan"}>
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400">
+          <div className="p-2 rounded-xl bg-slate-800/80 border border-slate-700 text-cyan-400">
             <Camera className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2">
+            <div className="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2 text-slate-100">
               <span>{cameraId} Focus Console</span>
               {!cameraProfileSaved && (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">
@@ -276,7 +279,7 @@ export const FocusView: React.FC = () => {
           <button
             onClick={() => toggleOverlay("showZoneBoxes")}
             className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition ${
-              showZoneBoxes ? "bg-red-950 text-red-300 border-red-800" : "bg-slate-800 text-slate-500 border-slate-700"
+              showZoneBoxes ? "bg-red-950 text-red-300 border-red-800 shadow-sm" : "bg-slate-800/80 text-slate-400 border-slate-700"
             }`}
           >
             Zones: {showZoneBoxes ? "ON" : "OFF"}
@@ -284,7 +287,7 @@ export const FocusView: React.FC = () => {
           <button
             onClick={() => toggleOverlay("showVehicleBoxes")}
             className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition ${
-              showVehicleBoxes ? "bg-blue-950 text-blue-300 border-blue-800" : "bg-slate-800 text-slate-500 border-slate-700"
+              showVehicleBoxes ? "bg-blue-950 text-blue-300 border-blue-800 shadow-sm" : "bg-slate-800/80 text-slate-400 border-slate-700"
             }`}
           >
             Vehicles: {showVehicleBoxes ? "ON" : "OFF"}
@@ -292,7 +295,7 @@ export const FocusView: React.FC = () => {
           <button
             onClick={() => toggleOverlay("showMotionTrails")}
             className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition ${
-              showMotionTrails ? "bg-sky-950 text-sky-300 border-sky-800" : "bg-slate-800 text-slate-500 border-slate-700"
+              showMotionTrails ? "bg-cyan-950 text-cyan-300 border-cyan-800 shadow-sm" : "bg-slate-800/80 text-slate-400 border-slate-700"
             }`}
           >
             Trails: {showMotionTrails ? "ON" : "OFF"}
@@ -300,7 +303,7 @@ export const FocusView: React.FC = () => {
           <button
             onClick={() => toggleOverlay("showGhostOutlines")}
             className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition ${
-              showGhostOutlines ? "bg-rose-950 text-rose-300 border-rose-800" : "bg-slate-800 text-slate-500 border-slate-700"
+              showGhostOutlines ? "bg-rose-950 text-rose-300 border-rose-800 shadow-sm" : "bg-slate-800/80 text-slate-400 border-slate-700"
             }`}
           >
             Ghosts: {showGhostOutlines ? "ON" : "OFF"}
@@ -308,13 +311,13 @@ export const FocusView: React.FC = () => {
           <button
             onClick={() => toggleOverlay("showSpeedVectors")}
             className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition ${
-              showSpeedVectors ? "bg-amber-950 text-amber-300 border-amber-800" : "bg-slate-800 text-slate-500 border-slate-700"
+              showSpeedVectors ? "bg-amber-950 text-amber-300 border-amber-800 shadow-sm" : "bg-slate-800/80 text-slate-400 border-slate-700"
             }`}
           >
             Vectors: {showSpeedVectors ? "ON" : "OFF"}
           </button>
         </div>
-      </div>
+      </GlassCard>
 
       {/* KPI Cards */}
       <KpiCards />
@@ -325,10 +328,22 @@ export const FocusView: React.FC = () => {
         <div className="lg:col-span-2 space-y-4">
           <div
             ref={stageContainerRef}
-            className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center group"
+            className={`relative w-full aspect-video bg-black rounded-2xl overflow-hidden border shadow-2xl flex items-center justify-center group transition-colors duration-500 ${
+              hasAccident
+                ? "border-red-600/90 shadow-[0_0_30px_rgba(239,68,68,0.35)]"
+                : "border-slate-800"
+            }`}
           >
             {/* Raw Video Canvas */}
             <canvas ref={canvasRef} className="w-full h-full object-contain" />
+
+            {/* High-Tech HUD Overlay */}
+            <VideoHudOverlay
+              cameraId={cameraId}
+              fps={telemetry?.fps}
+              activeTracks={telemetry?.tracks?.length}
+              hasAccident={hasAccident}
+            />
 
             {/* Sub-frame Vector Overlay Canvas */}
             <VectorOverlayCanvas
@@ -361,7 +376,7 @@ export const FocusView: React.FC = () => {
           />
 
           {/* Controls & Source Selection Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-2.5 rounded-xl">
+          <GlassCard className="p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3" glowColor="cyan">
             <SourceTabs />
             <Controls
               onStart={handleStart}
@@ -369,7 +384,7 @@ export const FocusView: React.FC = () => {
               onPause={() => wsRef.current?.pause()}
               onResume={() => wsRef.current?.resume()}
             />
-          </div>
+          </GlassCard>
 
           {/* Active Error Banner */}
           {error && (
@@ -389,30 +404,30 @@ export const FocusView: React.FC = () => {
 
           {/* Source Specific Configuration Area */}
           {source === "upload" && (
-            <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl">
+            <GlassCard className="p-3.5" glowColor="cyan">
               <UploadDropzone />
-            </div>
+            </GlassCard>
           )}
           {source === "webcam" && (
-            <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl">
+            <GlassCard className="p-3.5" glowColor="cyan">
               <WebcamPanel />
-            </div>
+            </GlassCard>
           )}
           {source === "demos" && (
-            <div className="p-3.5 bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl">
+            <GlassCard className="p-3.5" glowColor="cyan">
               <DemoGallery />
-            </div>
+            </GlassCard>
           )}
         </div>
 
         {/* Right: Side Panel Tabs */}
-        <div className="space-y-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur">
+        <GlassCard className="space-y-4 p-4" glowColor="cyan">
           {/* Tab Selector */}
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
             <button
               onClick={() => setActiveTab("telemetry")}
               className={`flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1 ${
-                activeTab === "telemetry" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"
+                activeTab === "telemetry" ? "bg-slate-800 text-cyan-300 shadow-sm" : "text-slate-400 hover:text-white"
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
@@ -421,7 +436,7 @@ export const FocusView: React.FC = () => {
             <button
               onClick={() => setActiveTab("zones")}
               className={`flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1 ${
-                activeTab === "zones" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"
+                activeTab === "zones" ? "bg-slate-800 text-cyan-300 shadow-sm" : "text-slate-400 hover:text-white"
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -430,7 +445,7 @@ export const FocusView: React.FC = () => {
             <button
               onClick={() => setActiveTab("tuning")}
               className={`flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1 ${
-                activeTab === "tuning" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"
+                activeTab === "tuning" ? "bg-slate-800 text-cyan-300 shadow-sm" : "text-slate-400 hover:text-white"
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
@@ -439,7 +454,7 @@ export const FocusView: React.FC = () => {
             <button
               onClick={() => setActiveTab("events")}
               className={`flex-1 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1 ${
-                activeTab === "events" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"
+                activeTab === "events" ? "bg-slate-800 text-cyan-300 shadow-sm" : "text-slate-400 hover:text-white"
               }`}
             >
               <ListFilter className="w-3.5 h-3.5" />
@@ -450,111 +465,67 @@ export const FocusView: React.FC = () => {
           {/* Tab 1: Inference Breakdown Stacked Bar */}
           {activeTab === "telemetry" && (
             <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Inference Latency Breakdown
+              <div className="font-mono text-xs text-slate-300 flex justify-between">
+                <span>Inference Latency:</span>
+                <span className="text-cyan-400 font-bold">{telemetry?.inference_ms?.total ? `${telemetry.inference_ms.total.toFixed(1)}ms` : "0.0ms"}</span>
               </div>
-              <div className="space-y-2 text-xs">
-                <div>
-                  <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                    <span>Accident YOLO:</span>
-                    <span className="font-mono text-white">{telemetry?.inference_ms?.accident ?? 0} ms</span>
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-red-500 h-1.5" style={{ width: `${Math.min(100, (telemetry?.inference_ms?.accident || 0) * 1.5)}%` }} />
-                  </div>
+              <div className="space-y-2 font-mono text-[11px] text-slate-400">
+                <div className="flex justify-between py-1 border-b border-slate-800/80">
+                  <span>Frame Counter:</span>
+                  <span className="text-slate-200">#{telemetry?.frame_idx ?? 0}</span>
                 </div>
-
-                <div>
-                  <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                    <span>Vehicle YOLO:</span>
-                    <span className="font-mono text-white">{telemetry?.inference_ms?.vehicle ?? 0} ms</span>
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-blue-500 h-1.5" style={{ width: `${Math.min(100, (telemetry?.inference_ms?.vehicle || 0) * 1.5)}%` }} />
-                  </div>
+                <div className="flex justify-between py-1 border-b border-slate-800/80">
+                  <span>Active Tracks:</span>
+                  <span className="text-cyan-400 font-bold">{telemetry?.tracks?.length ?? 0}</span>
                 </div>
-
-                <div>
-                  <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                    <span>BoT-SORT Tracker:</span>
-                    <span className="font-mono text-white">{telemetry?.inference_ms?.tracking ?? 0} ms</span>
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-sky-400 h-1.5" style={{ width: `${Math.min(100, (telemetry?.inference_ms?.tracking || 0) * 2)}%` }} />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                    <span>State Machine & Kinematics:</span>
-                    <span className="font-mono text-white">{telemetry?.inference_ms?.logic ?? 0} ms</span>
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-amber-400 h-1.5" style={{ width: `${Math.min(100, (telemetry?.inference_ms?.logic || 0) * 3)}%` }} />
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-800 flex justify-between font-mono font-bold text-xs">
-                  <span>Total End-to-End:</span>
-                  <span className="text-emerald-400">{telemetry?.inference_ms?.total ?? 0} ms</span>
+                <div className="flex justify-between py-1 border-b border-slate-800/80">
+                  <span>Confirmed Accidents:</span>
+                  <span className={(telemetry?.confirmed_accidents ?? 0) > 0 ? "text-red-400 font-bold" : "text-emerald-400 font-bold"}>
+                    {telemetry?.confirmed_accidents ?? 0}
+                  </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tab 2: Zone List */}
           {activeTab === "zones" && (
-            <div className="space-y-2">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Active Hazard Zones
-              </div>
-              {(!telemetry?.zones || telemetry.zones.length === 0) ? (
-                <div className="text-center py-8 text-xs text-slate-500">
-                  Zero active accident zones. Road clear.
-                </div>
+            <div className="space-y-2 text-xs">
+              {(telemetry?.zones ?? []).length === 0 ? (
+                <p className="text-slate-500 italic py-4 text-center">No active detection zones registered.</p>
               ) : (
-                telemetry.zones.map((z) => (
-                  <div key={z.zone_id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-red-400">Zone #{z.zone_id}</span>
-                      <span className="font-mono text-[10px] uppercase font-bold text-slate-300">
-                        {z.status}
-                      </span>
+                telemetry?.zones?.map((z) => (
+                  <div key={z.zone_id} className="p-2.5 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-200">Zone #{z.zone_id}</span>
+                      <span className="text-[10px] text-slate-400 ml-2">Conf: {(z.conf * 100).toFixed(0)}%</span>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex justify-between font-mono">
-                      <span>Origin: {z.origin}</span>
-                      <span>Conf: {(z.conf * 100).toFixed(0)}%</span>
-                    </div>
+                    <span className="font-mono text-[10px] text-cyan-400 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">
+                      {z.status}
+                    </span>
                   </div>
                 ))
               )}
             </div>
           )}
 
-          {/* Tab 3: Tuning & Save Profile */}
           {activeTab === "tuning" && (
-            <div className="space-y-4">
-              <SettingsSidebar
-                onLiveSettingsChange={(updated) => wsRef.current?.updateSettings(updated)}
-              />
+            <div className="space-y-3 text-xs">
+              <SettingsSidebar />
               <button
                 onClick={handleSaveProfile}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs shadow transition flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition shadow-sm"
               >
-                <CheckCircle className="w-4 h-4" />
-                <span>Save as Camera Profile</span>
+                {cameraProfileSaved ? "Profile Saved!" : "Save Profile for Camera"}
               </button>
-              {cameraProfileSaved && (
-                <div className="text-[11px] text-emerald-400 text-center font-bold">
-                  ✓ Profile saved for {cameraId}
-                </div>
-              )}
             </div>
           )}
 
-          {/* Tab 4: Events Log */}
-          {activeTab === "events" && <EventLog />}
-        </div>
+          {activeTab === "events" && (
+            <div className="space-y-2">
+              <EventLog />
+            </div>
+          )}
+        </GlassCard>
       </div>
     </div>
   );
