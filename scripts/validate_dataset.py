@@ -19,7 +19,7 @@ from typing import List, Dict, Set, Tuple
 
 VALID_LABELS = {"crash", "normal"}
 VALID_SPLITS = {"dev", "test"}
-VALID_TAGS = {"day", "night", "rain", "dense", "dashcam", "cctv"}
+VALID_TAGS = {"day", "night", "rain", "dense", "dashcam", "cctv", "distant"}
 
 
 def validate_dataset(eval_dir: str = "eval") -> Tuple[bool, List[str], int]:

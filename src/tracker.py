@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import List, Dict, Any, Optional
 from collections import deque
@@ -87,6 +88,8 @@ class VehicleTracker:
         max_history: int = 30,
         calibrator: Optional[Any] = None,
         fps: float = 30.0,
+        imgsz: int = 640,
+        with_reid: bool = False,
     ):
         self.model = vehicle_model
         self.tracker_type = tracker_type
@@ -97,6 +100,8 @@ class VehicleTracker:
         self.max_history = max_history
         self.calibrator = calibrator
         self.fps = fps
+        self.imgsz = imgsz
+        self.with_reid = with_reid
 
         # Active tracks dictionary: track_id -> TrackedVehicle
         self.active_tracks: Dict[int, TrackedVehicle] = {}
@@ -110,14 +115,22 @@ class VehicleTracker:
         effective_fps = fps if fps is not None and fps > 0 else self.fps
         dt = 1.0 / effective_fps if effective_fps > 0 else (1.0 / 30.0)
 
+        # Select tracker config based on ReID flag
+        tracker_cfg = (
+            "config/trackers/botsort_reid.yaml"
+            if self.with_reid and os.path.exists("config/trackers/botsort_reid.yaml")
+            else self.tracker_type
+        )
+
         results = self.model.track(
             source=frame,
             persist=True,
-            tracker=self.tracker_type,
+            tracker=tracker_cfg,
             conf=self.conf,
             iou=self.iou,
             classes=self.classes,
             device=self.device,
+            imgsz=self.imgsz,
             verbose=False,
         )
 

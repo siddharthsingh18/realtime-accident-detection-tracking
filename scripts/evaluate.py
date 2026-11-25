@@ -183,6 +183,11 @@ def run_evaluation(
     split_filter: str = "all",
     max_frames: int = 0,
     gate_mode: str = "off",
+    imgsz: int = 640,
+    sahi: bool = False,
+    with_reid: bool = False,
+    conf_threshold: Optional[float] = None,
+    confirm_hits: Optional[int] = None,
     results_root: str = "eval/results",
 ) -> Dict[str, Any]:
     valid, errors, clip_count = validate_dataset(eval_dir)
@@ -197,18 +202,45 @@ def run_evaluation(
         print("Please place test .mp4 clips into eval/clips/ and define rows in eval/labels.csv and eval/splits.csv.")
         sys.exit(2)
 
+    if clip_count < 20:
+        print(f"\n⚠️ WARNING: 'eval/clips/' has {clip_count} clips (< 20 clips). Results will be only a rough signal.")
+
     labels_map, splits_map = load_dataset_metadata(eval_dir)
     clips_dir = os.path.join(eval_dir, "clips")
 
     # Run ID and directory
     now_ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    run_id = f"eval_{now_ts}_{backend.lower()}_gate_{gate_mode}"
+    tags = [f"imgsz{imgsz}"]
+    if sahi:
+        tags.append("sahi")
+    if with_reid:
+        tags.append("reid")
+    if gate_mode != "off":
+        tags.append(f"gate_{gate_mode}")
+    if conf_threshold is not None:
+        tags.append(f"conf{int(conf_threshold*100)}")
+    if confirm_hits is not None:
+        tags.append(f"hits{confirm_hits}")
+
+    tag_suffix = "_" + "_".join(tags) if tags else ""
+    run_id = f"eval_{now_ts}_{backend.lower()}{tag_suffix}"
     run_dir = os.path.join(results_root, run_id)
     failures_dir = os.path.join(run_dir, "failures")
     os.makedirs(failures_dir, exist_ok=True)
 
-    # Initialize default settings
-    settings = PipelineSettings(inference_backend=backend)
+    # Initialize default settings with overrides
+    settings = PipelineSettings(
+        inference_backend=backend,
+        imgsz=imgsz,
+        with_reid=with_reid,
+    )
+    if sahi:
+        settings.sahi.enabled = True
+    if conf_threshold is not None:
+        settings.accident_conf = conf_threshold
+    if confirm_hits is not None:
+        settings.confirm_seconds = confirm_hits / 30.0
+
     if gate_mode == "off":
         settings.kinematic_gate.enabled = False
     else:
@@ -462,6 +494,11 @@ def main():
     parser.add_argument("--eval-dir", default="eval", help="Path to evaluation dataset directory")
     parser.add_argument("--backend", default="pytorch", choices=["pytorch", "onnx"], help="Inference backend runtime")
     parser.add_argument("--gate-mode", default="off", choices=["off", "boost", "require"], help="Kinematic gate mode: off (baseline default), boost, or require")
+    parser.add_argument("--imgsz", type=int, default=640, choices=[640, 960, 1280], help="Inference resolution image size")
+    parser.add_argument("--sahi", action="store_true", help="Enable Sliced Aided Hyper Inference (SAHI)")
+    parser.add_argument("--with-reid", action="store_true", help="Enable BoT-SORT ReID appearance embeddings")
+    parser.add_argument("--conf-threshold", type=float, default=None, help="Accident confidence threshold override")
+    parser.add_argument("--confirm-hits", type=int, default=None, help="Confirm hits frame count override")
     parser.add_argument("--split", default="all", choices=["all", "dev", "test"], help="Dataset split to evaluate")
     parser.add_argument("--max-frames", type=int, default=0, help="Max frames per clip (0 for complete clip)")
     args = parser.parse_args()
@@ -472,6 +509,11 @@ def main():
         split_filter=args.split,
         max_frames=args.max_frames,
         gate_mode=args.gate_mode,
+        imgsz=args.imgsz,
+        sahi=args.sahi,
+        with_reid=args.with_reid,
+        conf_threshold=args.conf_threshold,
+        confirm_hits=args.confirm_hits,
     )
 
 

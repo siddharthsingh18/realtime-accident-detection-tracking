@@ -230,7 +230,7 @@ def test_detection_inside_ignore_polygon_produces_no_alert(monkeypatch):
 
     # 1. Detection inside ignore region: centroid at (150, 150) -> normalized (0.117, 0.208)
     det_inside = [{"bbox": [100.0, 100.0, 200.0, 200.0], "conf": 0.95, "class_name": "accident"}]
-    monkeypatch.setattr(processor.detector, "detect_accidents", lambda f: det_inside)
+    monkeypatch.setattr(processor.detector, "detect_accidents", lambda f, *args, **kwargs: det_inside)
     monkeypatch.setattr(processor.tracker, "update", lambda f, fps=30.0: [])
 
     # Process 5 consecutive frames
@@ -243,7 +243,7 @@ def test_detection_inside_ignore_polygon_produces_no_alert(monkeypatch):
 
     # 2. Detection outside ignore region: centroid at (800, 500) -> normalized (0.625, 0.694)
     det_outside = [{"bbox": [750.0, 450.0, 850.0, 550.0], "conf": 0.95, "class_name": "accident"}]
-    monkeypatch.setattr(processor.detector, "detect_accidents", lambda f: det_outside)
+    monkeypatch.setattr(processor.detector, "detect_accidents", lambda f, *args, **kwargs: det_outside)
 
     confirmed_seen = False
     for i in range(5, 12):

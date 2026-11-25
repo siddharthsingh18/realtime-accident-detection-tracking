@@ -1,1 +1,6 @@
 filename,label,crash_onset_sec,condition_tags
+sample1_crash.mp4,crash,3.6,day;cctv
+sample2_crash.mp4,crash,4.5,day;cctv;dense
+sample1_normal_pre.mp4,normal,,day;cctv
+sample2_normal_pre.mp4,normal,,day;cctv;dense
+sample1_crash_test.mp4,crash,1.6,day;cctv;distant

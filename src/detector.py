@@ -1,6 +1,8 @@
 import os
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+import cv2
+import numpy as np
 import torch
 from ultralytics import YOLO
 
@@ -28,9 +30,21 @@ class DualDetector:
         vehicle_classes: Optional[List[int]] = None,
         device: Optional[str] = None,
         backend: str = "pytorch",
+        imgsz: int = 640,
+        sahi_enabled: bool = False,
+        sahi_slice_size: int = 640,
+        sahi_overlap_ratio: float = 0.20,
+        sahi_merge_iou: float = 0.50,
+        sahi_interval: int = 3,
     ):
         self.device = self._resolve_device(device)
         self.backend = (backend or "pytorch").lower()
+        self.imgsz = imgsz
+        self.sahi_enabled = sahi_enabled
+        self.sahi_slice_size = sahi_slice_size
+        self.sahi_overlap_ratio = sahi_overlap_ratio
+        self.sahi_merge_iou = sahi_merge_iou
+        self.sahi_interval = max(1, sahi_interval)
         self.accident_conf = accident_conf
         self.vehicle_conf = vehicle_conf
         self.accident_iou = accident_iou
@@ -103,22 +117,7 @@ class DualDetector:
         )
         return fallback
 
-    def detect_accidents(self, frame) -> List[Dict[str, Any]]:
-        """
-        Run inference using the custom YOLO accident detector.
-        Returns a list of accident detection dictionaries with bounding boxes and confidence scores.
-        """
-        if not self.has_accident_class:
-            return []
-
-        results = self.accident_model.predict(
-            source=frame,
-            conf=self.accident_conf,
-            iou=self.accident_iou,
-            device=self.device,
-            verbose=False,
-        )
-
+    def _parse_accident_boxes(self, results, x_offset: float = 0.0, y_offset: float = 0.0) -> List[Dict[str, Any]]:
         detections = []
         if not results or len(results) == 0:
             return detections
@@ -138,10 +137,99 @@ class DualDetector:
                 k in str(cls_name).lower() for k in ["accident", "crash", "collision", "incident"]
             ):
                 detections.append({
-                    "bbox": [float(x) for x in xyxy],
+                    "bbox": [float(xyxy[0] + x_offset), float(xyxy[1] + y_offset), float(xyxy[2] + x_offset), float(xyxy[3] + y_offset)],
                     "conf": conf,
                     "class_id": cls_id,
                     "class_name": cls_name if "accident" in cls_name.lower() else "accident",
                 })
 
         return detections
+
+    def detect_accidents(self, frame: np.ndarray, frame_idx: int = 0) -> List[Dict[str, Any]]:
+        """
+        Run inference using the custom YOLO accident detector.
+        Supports standard whole-frame inference (with configurable imgsz) and
+        optional SAHI sliced inference.
+        """
+        if not self.has_accident_class:
+            return []
+
+        # SAHI Sliced Inference path
+        if self.sahi_enabled and (frame_idx % self.sahi_interval == 0):
+            return self._detect_accidents_sahi(frame)
+
+        # Standard whole-frame inference path
+        results = self.accident_model.predict(
+            source=frame,
+            conf=self.accident_conf,
+            iou=self.accident_iou,
+            imgsz=self.imgsz,
+            device=self.device,
+            verbose=False,
+        )
+        return self._parse_accident_boxes(results)
+
+    def _detect_accidents_sahi(self, frame: np.ndarray) -> List[Dict[str, Any]]:
+        H, W = frame.shape[:2]
+        slice_sz = min(self.sahi_slice_size, min(H, W))
+        step = max(64, int(slice_sz * (1.0 - self.sahi_overlap_ratio)))
+
+        candidate_dets: List[Dict[str, Any]] = []
+
+        # 1. Base full-frame pass
+        full_res = self.accident_model.predict(
+            source=frame,
+            conf=self.accident_conf,
+            iou=self.accident_iou,
+            imgsz=self.imgsz,
+            device=self.device,
+            verbose=False,
+        )
+        candidate_dets.extend(self._parse_accident_boxes(full_res))
+
+        # 2. Grid slices
+        y = 0
+        while y < H:
+            y_end = min(y + slice_sz, H)
+            y_start = max(0, y_end - slice_sz)
+            x = 0
+            while x < W:
+                x_end = min(x + slice_sz, W)
+                x_start = max(0, x_end - slice_sz)
+                tile = frame[y_start:y_end, x_start:x_end]
+
+                res = self.accident_model.predict(
+                    source=tile,
+                    conf=self.accident_conf,
+                    iou=self.accident_iou,
+                    imgsz=slice_sz,
+                    device=self.device,
+                    verbose=False,
+                )
+                slice_dets = self._parse_accident_boxes(res, x_offset=float(x_start), y_offset=float(y_start))
+                candidate_dets.extend(slice_dets)
+
+                if x_end >= W:
+                    break
+                x += step
+            if y_end >= H:
+                break
+            y += step
+
+        if not candidate_dets:
+            return []
+
+        # 3. Merge slice overlapping detections with NMS
+        boxes_xywh = []
+        scores = []
+        for d in candidate_dets:
+            b = d["bbox"]
+            boxes_xywh.append([int(b[0]), int(b[1]), int(b[2] - b[0]), int(b[3] - b[1])])
+            scores.append(float(d["conf"]))
+
+        indices = cv2.dnn.NMSBoxes(boxes_xywh, scores, score_threshold=0.0, nms_threshold=self.sahi_merge_iou)
+        if len(indices) == 0:
+            return []
+
+        keep_indices = set(indices.flatten() if hasattr(indices, "flatten") else [indices[0]])
+        return [candidate_dets[i] for i in keep_indices]

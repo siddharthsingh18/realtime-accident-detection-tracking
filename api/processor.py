@@ -36,10 +36,19 @@ _detector_cache: Dict[str, DualDetector] = {}
 _inference_lock = threading.Lock()
 
 
-def get_shared_detector(device: Optional[str] = None, backend: str = "pytorch") -> DualDetector:
-    dev_key = f"{device or 'auto'}_{backend.lower()}"
+def get_shared_detector(
+    device: Optional[str] = None,
+    backend: str = "pytorch",
+    imgsz: int = 640,
+    sahi_enabled: bool = False,
+    sahi_slice_size: int = 640,
+    sahi_overlap_ratio: float = 0.20,
+    sahi_merge_iou: float = 0.50,
+    sahi_interval: int = 3,
+) -> DualDetector:
+    dev_key = f"{device or 'auto'}_{backend.lower()}_{imgsz}_{sahi_enabled}"
     if dev_key not in _detector_cache:
-        logger.info(f"Loading shared DualDetector for device: {device or 'auto'}, backend: {backend}")
+        logger.info(f"Loading shared DualDetector for device: {device or 'auto'}, backend: {backend}, imgsz: {imgsz}, sahi: {sahi_enabled}")
         accident_path = "models/accident_yolo11s.onnx" if backend.lower() == "onnx" and os.path.exists("models/accident_yolo11s.onnx") else "models/accident_yolo11s.pt"
         vehicle_path = "models/yolo11n.onnx" if backend.lower() == "onnx" and os.path.exists("models/yolo11n.onnx") else "models/yolo11n.pt"
         _detector_cache[dev_key] = DualDetector(
@@ -47,6 +56,12 @@ def get_shared_detector(device: Optional[str] = None, backend: str = "pytorch") 
             vehicle_weights=vehicle_path,
             device=None if dev_key.startswith("auto") else device,
             backend=backend,
+            imgsz=imgsz,
+            sahi_enabled=sahi_enabled,
+            sahi_slice_size=sahi_slice_size,
+            sahi_overlap_ratio=sahi_overlap_ratio,
+            sahi_merge_iou=sahi_merge_iou,
+            sahi_interval=sahi_interval,
         )
     return _detector_cache[dev_key]
 
@@ -90,7 +105,16 @@ class FrameProcessor:
             logger.info(f"Loaded road-plane calibration matrix for camera '{self.camera_id}'.")
 
         # Detectors and tracker
-        self.detector = get_shared_detector(self.settings.device, self.settings.inference_backend)
+        self.detector = get_shared_detector(
+            device=self.settings.device,
+            backend=self.settings.inference_backend,
+            imgsz=self.settings.imgsz,
+            sahi_enabled=self.settings.sahi.enabled,
+            sahi_slice_size=self.settings.sahi.slice_size,
+            sahi_overlap_ratio=self.settings.sahi.overlap_ratio,
+            sahi_merge_iou=self.settings.sahi.merge_iou_threshold,
+            sahi_interval=self.settings.sahi.slice_every_n_frames,
+        )
         self.detector.accident_conf = self.settings.accident_conf
         self.detector.vehicle_conf = self.settings.vehicle_conf
 
@@ -108,6 +132,8 @@ class FrameProcessor:
             max_history=30,
             calibrator=self.calibrator,
             fps=self.fps,
+            imgsz=self.settings.imgsz,
+            with_reid=self.settings.with_reid,
         )
 
         self.persistence_mgr = AccidentPersistenceManager(
@@ -158,7 +184,15 @@ class FrameProcessor:
         self.settings = new_settings
         self.detector.accident_conf = new_settings.accident_conf
         self.detector.vehicle_conf = new_settings.vehicle_conf
+        self.detector.imgsz = new_settings.imgsz
+        self.detector.sahi_enabled = new_settings.sahi.enabled
+        self.detector.sahi_slice_size = new_settings.sahi.slice_size
+        self.detector.sahi_overlap_ratio = new_settings.sahi.overlap_ratio
+        self.detector.sahi_merge_iou = new_settings.sahi.merge_iou_threshold
+        self.detector.sahi_interval = new_settings.sahi.slice_every_n_frames
         self.tracker.conf = new_settings.vehicle_conf
+        self.tracker.imgsz = new_settings.imgsz
+        self.tracker.with_reid = new_settings.with_reid
 
         self.persistence_frames = seconds_to_frames(new_settings.persistence_seconds, self.fps)
         self.confirm_hits = seconds_to_frames(new_settings.confirm_seconds, self.fps)
@@ -223,7 +257,10 @@ class FrameProcessor:
             t_vehicle = (time.time() - t_v0) * 1000
 
             t_a0 = time.time()
-            raw_accidents = self.detector.detect_accidents(frame)
+            try:
+                raw_accidents = self.detector.detect_accidents(frame, frame_idx=frame_idx)
+            except TypeError:
+                raw_accidents = self.detector.detect_accidents(frame)
             t_accident = (time.time() - t_a0) * 1000
 
         # 3. Collision Heuristic + Ignore Region Filter + Confirmation Logic

@@ -14,6 +14,14 @@ class HealthResponse(BaseModel):
     models: Dict[str, Any]
 
 
+class SahiSettings(BaseModel):
+    enabled: bool = Field(False, description="Enable Sliced Aided Hyper Inference (SAHI)")
+    slice_size: int = Field(640, description="Slice width/height in pixels")
+    overlap_ratio: float = Field(0.20, ge=0.0, le=0.5, description="Overlap ratio between slices")
+    merge_iou_threshold: float = Field(0.50, ge=0.1, le=0.9, description="IoU threshold for NMS merging")
+    slice_every_n_frames: int = Field(3, ge=1, le=10, description="Perform SAHI every Nth frame")
+
+
 class KinematicGateSettings(BaseModel):
     enabled: bool = Field(False, description="Enable ground-plane TTC and deceleration gating (default false)")
     mode: Literal["require", "boost"] = Field("require", description="Gate mode: require (blocks false alarms) or boost (raises confidence)")
@@ -35,6 +43,9 @@ class PipelineSettings(BaseModel):
     use_collision_heuristic: bool = Field(True, description="Enable kinematic collision detection heuristic")
     device: Literal["auto", "cpu", "mps", "cuda"] = Field("auto", description="Compute device")
     inference_backend: Literal["pytorch", "onnx"] = Field("pytorch", description="Inference runtime backend: pytorch or onnx")
+    imgsz: int = Field(640, description="Inference image resolution (e.g. 640, 960, 1280)")
+    sahi: SahiSettings = Field(default_factory=SahiSettings, description="SAHI sliced inference settings")
+    with_reid: bool = Field(False, description="Enable BoT-SORT ReID appearance embeddings")
     deceleration_threshold_kmh: float = Field(35.0, ge=5.0, le=150.0, description="Deceleration drop threshold in km/h for calibrated cameras")
     deceleration_threshold_px: float = Field(120.0, ge=10.0, le=500.0, description="Deceleration drop threshold in px/s for uncalibrated cameras")
     save_output: bool = Field(False, description="Persist video output to disk")

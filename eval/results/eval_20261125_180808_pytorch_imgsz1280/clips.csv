@@ -1,0 +1,4 @@
+filename,split,label,crash_onset_sec,condition_tags,duration_sec,fired,first_alert_sec,alert_count,max_conf,processing_time_sec,processing_fps
+sample1_crash.mp4,dev,crash,3.6,day|cctv,11.87,True,3.567,4,0.98,72.572,4.9
+sample1_normal_pre.mp4,dev,normal,,day|cctv,3.0,False,,0,0.0,18.645,4.8
+sample2_crash.mp4,dev,crash,4.5,day|cctv|dense,17.27,True,4.467,2,0.98,112.358,4.6

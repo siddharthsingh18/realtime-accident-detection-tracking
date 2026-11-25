@@ -1,0 +1,29 @@
+accident_conf: 0.4
+confirm_seconds: 0.17
+containment_threshold: 0.5
+deceleration_threshold_kmh: 35.0
+deceleration_threshold_px: 120.0
+device: auto
+imgsz: 640
+inference_backend: pytorch
+iou_threshold: 0.3
+kinematic_gate:
+  enabled: false
+  lookback_window_s: 1.0
+  min_decel_mps2: 4.0
+  min_relative_speed_drop_mps: 3.0
+  min_ttc_before_contact_s: 2.0
+  mode: require
+  stationary_speed_mps: 1.2
+persistence_seconds: 0.5
+sahi:
+  enabled: false
+  merge_iou_threshold: 0.5
+  overlap_ratio: 0.2
+  slice_every_n_frames: 3
+  slice_size: 640
+save_output: false
+tentative_grace_seconds: 0.07
+use_collision_heuristic: true
+vehicle_conf: 0.35
+with_reid: false

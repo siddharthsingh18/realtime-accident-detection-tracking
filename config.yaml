@@ -8,6 +8,13 @@ device: "auto"
 # Inference Runtime Backend: "pytorch" (default) or "onnx"
 inference:
   backend: "pytorch"
+  imgsz: 640                              # Inference image size: 640 (default), 960, or 1280
+  sahi:
+    enabled: false                        # Enable Sliced Aided Hyper Inference (default false)
+    slice_size: 640                       # Square slice dimension in pixels
+    overlap_ratio: 0.20                   # Overlap between adjacent slices (0.0 to 0.5)
+    merge_iou_threshold: 0.50             # Merge NMS IoU threshold
+    slice_every_n_frames: 3               # Execute slicing every Nth frame to preserve FPS
 
 # YOLO Models Configuration
 models:
@@ -29,6 +36,7 @@ models:
 tracker:
   type: "botsort.yaml"                    # BoT-SORT configuration file (built into Ultralytics)
   max_history: 30                         # Frames of trajectory centroid history to maintain
+  with_reid: false                        # Enable ReID appearance embeddings (default false)
 
 # Spatial Filtering & Confirmation State Machine Logic
 logic:
