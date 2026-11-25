@@ -288,4 +288,20 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/incidents/${incidentId}/notifications`, { headers: getAuthHeaders() });
     return handleResponse(res, z.array(NotificationLogItemSchema));
   },
+
+  // Evaluation Harness
+  async getLatestEvaluation(): Promise<import("./types").LatestEvalResponse> {
+    const res = await fetch(`${API_BASE}/api/eval/latest`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  async getEvaluationRuns(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/api/eval/runs`, { headers: getAuthHeaders() });
+    return res.json();
+  },
+
+  async getEvaluationRun(runId: string): Promise<import("./types").EvalReport> {
+    const res = await fetch(`${API_BASE}/api/eval/runs/${runId}`, { headers: getAuthHeaders() });
+    return res.json();
+  },
 };

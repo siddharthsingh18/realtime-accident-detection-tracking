@@ -26,6 +26,7 @@ import {
   Clock,
   Cpu,
   Film,
+  ClipboardCheck,
 } from "lucide-react";
 
 import { AlertDrawer } from "./AlertDrawer";
@@ -146,6 +147,7 @@ export const AppShell: React.FC = () => {
     { to: "/analytics", label: t("nav.analytics"), icon: <BarChart3 className="w-4 h-4" /> },
     { to: "/compare", label: t("nav.compare"), icon: <GitCompare className="w-4 h-4" /> },
     { to: "/cameras", label: t("nav.cameras"), icon: <Camera className="w-4 h-4" /> },
+    { to: "/evaluation", label: t("nav.evaluation", "Evaluation"), icon: <ClipboardCheck className="w-4 h-4" /> },
     { to: "/settings", label: t("nav.settings"), icon: <Settings className="w-4 h-4" /> },
   ];
 

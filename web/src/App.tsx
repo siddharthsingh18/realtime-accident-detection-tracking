@@ -15,6 +15,7 @@ const AnalyticsView = lazy(() => import("./pages/AnalyticsView").then((m) => ({ 
 const CompareView = lazy(() => import("./pages/CompareView").then((m) => ({ default: m.CompareView })));
 const CamerasView = lazy(() => import("./pages/CamerasView").then((m) => ({ default: m.CamerasView })));
 const SettingsView = lazy(() => import("./pages/SettingsView").then((m) => ({ default: m.SettingsView })));
+const EvaluationView = lazy(() => import("./pages/EvaluationView").then((m) => ({ default: m.EvaluationView })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
                 <Route path="compare" element={<CompareView />} />
                 <Route path="cameras" element={<CamerasView />} />
                 <Route path="settings" element={<SettingsView />} />
+                <Route path="evaluation" element={<EvaluationView />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

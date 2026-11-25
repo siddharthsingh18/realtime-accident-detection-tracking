@@ -7,6 +7,7 @@ export interface MetricTileProps {
   value: number | string;
   unit?: string;
   change?: string;
+  subtext?: string;
   trend?: "up" | "down" | "neutral";
   variant?: "cyan" | "critical" | "warning" | "success" | "default";
   icon?: React.ReactNode;
@@ -19,6 +20,7 @@ export const MetricTile: React.FC<MetricTileProps> = ({
   value,
   unit,
   change,
+  subtext,
   trend,
   variant = "default",
   icon,
@@ -83,13 +85,13 @@ export const MetricTile: React.FC<MetricTileProps> = ({
       </div>
 
       <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px]">
-        {change && (
+        {(change || subtext) && (
           <span
             className={`font-mono font-medium ${
               trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-slate-400"
             }`}
           >
-            {change}
+            {change || subtext}
           </span>
         )}
 

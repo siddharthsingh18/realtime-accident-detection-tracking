@@ -58,6 +58,7 @@ from api.routes_incidents import router as incidents_router
 from api.routes_cameras import router as cameras_router
 from api.routes_compare import router as compare_router
 from api.routes_notifications import router as notifications_router
+from api.routes_eval import router as eval_router
 from api.sse import alert_bus
 from api import db
 
@@ -113,6 +114,7 @@ app.include_router(incidents_router)
 app.include_router(cameras_router)
 app.include_router(compare_router)
 app.include_router(notifications_router)
+app.include_router(eval_router)
 
 
 @app.get("/api/health", response_model=HealthResponse)

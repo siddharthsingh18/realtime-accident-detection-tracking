@@ -270,3 +270,91 @@ export const SessionCreateResponseSchema = z.object({
 });
 
 export type SessionCreateResponse = z.infer<typeof SessionCreateResponseSchema>;
+
+// --- Evaluation Harness Schemas ---
+export interface EvalFailureItem {
+  filename: string;
+  image: string;
+  outcome: "FP" | "FN";
+  reason: string;
+  split: string;
+  max_conf: number;
+}
+
+export interface EvalReport {
+  run_id: string;
+  timestamp_utc: string;
+  backend: string;
+  is_smoke_test: boolean;
+  config: Record<string, any>;
+  summary_all: {
+    summary: {
+      total_clips: number;
+      total_crashes: number;
+      total_normals: number;
+      total_duration_sec: number;
+      normal_duration_sec: number;
+      normal_duration_hours: number;
+    };
+    counts: {
+      TP: number;
+      FP: number;
+      FN: number;
+      TN: number;
+    };
+    rates: {
+      precision: number;
+      precision_ci_95: [number, number];
+      recall: number;
+      recall_ci_95: [number, number];
+      f1_score: number;
+      accuracy: number;
+      accuracy_ci_95: [number, number];
+      false_alarms_per_hour: number;
+    };
+    delay: {
+      sample_count: number;
+      median_sec: number | null;
+      p90_sec: number | null;
+      min_sec: number | null;
+      max_sec: number | null;
+      max_delay_threshold_sec: number;
+    };
+  };
+  summary_dev?: any;
+  summary_test?: any;
+  condition_breakdown: Record<string, {
+    clip_count: number;
+    crashes: number;
+    normals: number;
+    TP: number;
+    FP: number;
+    FN: number;
+    TN: number;
+    precision: number;
+    recall: number;
+    f1_score: number;
+    false_alarms_per_hour: number;
+    median_delay_sec: number | null;
+  }>;
+  pr_curve_dev: Array<{
+    threshold: number;
+    precision: number;
+    recall: number;
+    f1: number;
+    TP: number;
+    FP: number;
+    FN: number;
+    TN: number;
+    fa_per_hour: number;
+  }>;
+  failure_count: number;
+  failures: EvalFailureItem[];
+  limitations: string[];
+}
+
+export interface LatestEvalResponse {
+  has_run: boolean;
+  message?: string;
+  report?: EvalReport;
+}

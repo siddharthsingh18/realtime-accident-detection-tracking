@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../store/useSessionStore";
-import { Search, Monitor, AlertCircle, BarChart3, GitCompare, Camera, Settings, Eye, Volume2, VolumeX, Moon, Sun, Film, Sparkles } from "lucide-react";
+import { Search, Monitor, AlertCircle, BarChart3, GitCompare, Camera, Settings, Eye, Volume2, VolumeX, Moon, Sun, Film, Sparkles, ClipboardCheck } from "lucide-react";
 
 export const CommandPalette: React.FC = () => {
   const {
@@ -28,6 +28,7 @@ export const CommandPalette: React.FC = () => {
     { id: "nav_analytics", title: "Go to Incident Analytics", icon: <BarChart3 className="w-4 h-4 text-amber-400" />, run: () => navigate("/analytics") },
     { id: "nav_compare", title: "Go to A/B Comparison", icon: <GitCompare className="w-4 h-4 text-cyan-400" />, run: () => navigate("/compare") },
     { id: "nav_cameras", title: "Go to Camera Setup", icon: <Camera className="w-4 h-4 text-emerald-400" />, run: () => navigate("/cameras") },
+    { id: "nav_evaluation", title: "Go to Model Evaluation", icon: <ClipboardCheck className="w-4 h-4 text-purple-400" />, run: () => navigate("/evaluation") },
     { id: "nav_settings", title: "Go to System Settings", icon: <Settings className="w-4 h-4 text-slate-300" />, run: () => navigate("/settings") },
     { id: "cam_1", title: "Switch to Camera 01 (North)", icon: <Camera className="w-4 h-4 text-cyan-400" />, run: () => { setActiveCameraId("cam_01"); navigate("/camera/cam_01"); } },
     { id: "cam_2", title: "Switch to Camera 02 (Highway)", icon: <Camera className="w-4 h-4 text-cyan-400" />, run: () => { setActiveCameraId("cam_02"); navigate("/camera/cam_02"); } },
