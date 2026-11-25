@@ -165,12 +165,20 @@ class FrameProcessor:
         self.collision_detector.deceleration_threshold = new_settings.deceleration_threshold_px
         self.collision_detector.deceleration_threshold_kmh = new_settings.deceleration_threshold_kmh
 
-    def is_in_ignore_region(self, bbox: List[float]) -> bool:
+    def is_in_ignore_region(self, bbox: List[float], frame_w: int = 1280, frame_h: int = 720) -> bool:
         if not self.ignore_region or len(self.ignore_region) < 3:
             return False
         cx = (bbox[0] + bbox[2]) / 2.0
         cy = (bbox[1] + bbox[3]) / 2.0
-        poly = np.array(self.ignore_region, dtype=np.int32)
+
+        # Support both normalized coordinates [0..1] and absolute pixel coordinates
+        is_normalized = all(0.0 <= float(p[0]) <= 1.0 and 0.0 <= float(p[1]) <= 1.0 for p in self.ignore_region)
+        if is_normalized:
+            poly_pts = [[float(p[0]) * frame_w, float(p[1]) * frame_h] for p in self.ignore_region]
+        else:
+            poly_pts = self.ignore_region
+
+        poly = np.array(poly_pts, dtype=np.int32)
         dist = cv2.pointPolygonTest(poly, (cx, cy), False)
         return dist >= 0
 
@@ -209,8 +217,8 @@ class FrameProcessor:
             collisions = []
 
         # Filter out candidates whose centroid falls inside the ignore region polygon
-        valid_raw = [acc for acc in raw_accidents if not self.is_in_ignore_region(acc["bbox"])]
-        valid_col = [col for col in collisions if not self.is_in_ignore_region(col["bbox"])]
+        valid_raw = [acc for acc in raw_accidents if not self.is_in_ignore_region(acc["bbox"], frame_w=w, frame_h=h)]
+        valid_col = [col for col in collisions if not self.is_in_ignore_region(col["bbox"], frame_w=w, frame_h=h)]
 
         # Tag origins
         detector_zone_candidates = set()
@@ -297,7 +305,11 @@ class FrameProcessor:
 
         # Draw ignore region hatch on annotated frame if configured
         if self.ignore_region and len(self.ignore_region) >= 3:
-            pts = np.array(self.ignore_region, np.int32).reshape((-1, 1, 2))
+            is_normalized = all(0.0 <= float(p[0]) <= 1.0 and 0.0 <= float(p[1]) <= 1.0 for p in self.ignore_region)
+            if is_normalized:
+                pts = np.array([[int(p[0] * w), int(p[1] * h)] for p in self.ignore_region], np.int32).reshape((-1, 1, 2))
+            else:
+                pts = np.array(self.ignore_region, np.int32).reshape((-1, 1, 2))
             cv2.polylines(annotated_frame, [pts], isClosed=True, color=(100, 116, 139), thickness=2)
 
         # Save into rolling evidence buffer

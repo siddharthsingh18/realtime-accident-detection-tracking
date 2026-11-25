@@ -192,11 +192,68 @@ def test_ignore_region_server_side_filtering():
 
     # Box inside ignore region
     box_inside = [50, 50, 150, 150]
-    assert processor.is_in_ignore_region(box_inside) is True
+    assert processor.is_in_ignore_region(box_inside, frame_w=1280, frame_h=720) is True
 
     # Box outside ignore region
     box_outside = [300, 300, 450, 450]
-    assert processor.is_in_ignore_region(box_outside) is False
+    assert processor.is_in_ignore_region(box_outside, frame_w=1280, frame_h=720) is False
+
+    # Test normalized coordinates [0..1]
+    norm_poly = [[0.0, 0.0], [0.25, 0.0], [0.25, 0.25], [0.0, 0.25]]
+    norm_processor = FrameProcessor(
+        settings=PipelineSettings(),
+        fps=30.0,
+        ignore_region=norm_poly,
+    )
+    # Box inside (100, 100 on 1000x1000 -> 0.1, 0.1)
+    assert norm_processor.is_in_ignore_region([50, 50, 150, 150], frame_w=1000, frame_h=1000) is True
+    # Box outside (500, 500 on 1000x1000 -> 0.5, 0.5)
+    assert norm_processor.is_in_ignore_region([450, 450, 550, 550], frame_w=1000, frame_h=1000) is False
+
+
+def test_detection_inside_ignore_polygon_produces_no_alert(monkeypatch):
+    """
+    Verify that an accident detection whose centroid falls inside a normalized ignore polygon
+    is discarded server-side and produces no confirmed alerts or incident DB entries.
+    """
+    # Top-left quadrant ignore polygon in normalized coordinates: [0.0..0.4] x [0.0..0.4]
+    norm_ignore_poly = [[0.0, 0.0], [0.4, 0.0], [0.4, 0.4], [0.0, 0.4]]
+    settings = PipelineSettings(confirm_seconds=0.03, persistence_seconds=0.1)
+    processor = FrameProcessor(
+        settings=settings,
+        fps=30.0,
+        camera_id="cam_test_ignore",
+        ignore_region=norm_ignore_poly,
+    )
+
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+
+    # 1. Detection inside ignore region: centroid at (150, 150) -> normalized (0.117, 0.208)
+    det_inside = [{"bbox": [100.0, 100.0, 200.0, 200.0], "conf": 0.95, "class_name": "accident"}]
+    monkeypatch.setattr(processor.detector, "detect_accidents", lambda f: det_inside)
+    monkeypatch.setattr(processor.tracker, "update", lambda f, fps=30.0: [])
+
+    # Process 5 consecutive frames
+    for i in range(5):
+        jpeg, telemetry, _ = processor.process(frame, frame_idx=i)
+        # Assert no alerts produced
+        assert telemetry.confirmed_accidents == 0
+        assert not any(ev.type == "confirmed" for ev in telemetry.events)
+        assert len(processor.persistence_mgr.active_zones) == 0
+
+    # 2. Detection outside ignore region: centroid at (800, 500) -> normalized (0.625, 0.694)
+    det_outside = [{"bbox": [750.0, 450.0, 850.0, 550.0], "conf": 0.95, "class_name": "accident"}]
+    monkeypatch.setattr(processor.detector, "detect_accidents", lambda f: det_outside)
+
+    confirmed_seen = False
+    for i in range(5, 12):
+        jpeg, telemetry, _ = processor.process(frame, frame_idx=i)
+        if any(ev.type == "confirmed" for ev in telemetry.events):
+            confirmed_seen = True
+            assert telemetry.confirmed_accidents >= 1
+            break
+
+    assert confirmed_seen is True, "Detection outside ignore polygon should confirm and produce alert"
 
 
 def test_cameras_crud_and_ignore_region_persistence():
