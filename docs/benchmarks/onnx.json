@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-11-25T13:01:29Z",
+  "video": "assets/sample_traffic.mp4",
+  "total_frames_processed": 356,
+  "measured_frames": 351,
+  "warmup_frames": 5,
+  "backend": "onnx",
+  "device": "auto",
+  "vehicle_model_ms": {
+    "avg": 29.11,
+    "p95": 51.3
+  },
+  "accident_model_ms": {
+    "avg": 50.32,
+    "p95": 72.2
+  },
+  "total_inference_ms": {
+    "avg": 82.52,
+    "p95": 115.05
+  },
+  "end_to_end_fps": 12.11,
+  "peak_memory_mb": 1650.88
+}

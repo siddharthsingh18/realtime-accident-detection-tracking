@@ -57,8 +57,9 @@ def run_benchmark(
     print(f"--- Benchmarking Video: {video_path} ---")
     print(f"Total Video Frames: {total_video_frames}, FPS: {fps}, Backend: {backend_name}")
 
+    settings = PipelineSettings(inference_backend=backend_name)
     processor = FrameProcessor(
-        settings=PipelineSettings(),
+        settings=settings,
         fps=fps,
         total_frames=total_video_frames,
         camera_id="cam_benchmark",

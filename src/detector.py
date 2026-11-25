@@ -27,13 +27,25 @@ class DualDetector:
         vehicle_iou: float = 0.50,
         vehicle_classes: Optional[List[int]] = None,
         device: Optional[str] = None,
+        backend: str = "pytorch",
     ):
         self.device = self._resolve_device(device)
+        self.backend = (backend or "pytorch").lower()
         self.accident_conf = accident_conf
         self.vehicle_conf = vehicle_conf
         self.accident_iou = accident_iou
         self.vehicle_iou = vehicle_iou
         self.vehicle_classes = vehicle_classes or DEFAULT_VEHICLE_CLASSES
+
+        if self.backend == "onnx":
+            if accident_weights.endswith(".pt"):
+                cand = accident_weights[:-3] + ".onnx"
+                if os.path.exists(cand):
+                    accident_weights = cand
+            if vehicle_weights.endswith(".pt"):
+                cand = vehicle_weights[:-3] + ".onnx"
+                if os.path.exists(cand):
+                    vehicle_weights = cand
 
         # Load Accident Model
         self.accident_weights = self._resolve_weights(

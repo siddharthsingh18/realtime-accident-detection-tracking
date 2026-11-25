@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 import threading
@@ -34,14 +35,17 @@ _detector_cache: Dict[str, DualDetector] = {}
 _inference_lock = threading.Lock()
 
 
-def get_shared_detector(device: Optional[str] = None) -> DualDetector:
-    dev_key = device or "auto"
+def get_shared_detector(device: Optional[str] = None, backend: str = "pytorch") -> DualDetector:
+    dev_key = f"{device or 'auto'}_{backend.lower()}"
     if dev_key not in _detector_cache:
-        logger.info(f"Loading shared DualDetector for device: {dev_key}")
+        logger.info(f"Loading shared DualDetector for device: {device or 'auto'}, backend: {backend}")
+        accident_path = "models/accident_yolo11s.onnx" if backend.lower() == "onnx" and os.path.exists("models/accident_yolo11s.onnx") else "models/accident_yolo11s.pt"
+        vehicle_path = "models/yolo11n.onnx" if backend.lower() == "onnx" and os.path.exists("models/yolo11n.onnx") else "models/yolo11n.pt"
         _detector_cache[dev_key] = DualDetector(
-            accident_weights="models/accident_yolo11s.pt",
-            vehicle_weights="models/yolo11n.pt",
-            device=None if dev_key == "auto" else dev_key,
+            accident_weights=accident_path,
+            vehicle_weights=vehicle_path,
+            device=None if dev_key.startswith("auto") else device,
+            backend=backend,
         )
     return _detector_cache[dev_key]
 
@@ -80,13 +84,15 @@ class FrameProcessor:
         self.confirm_window = max(self.confirm_hits + 3, 8)
 
         # Detectors and tracker
-        self.detector = get_shared_detector(self.settings.device)
+        self.detector = get_shared_detector(self.settings.device, self.settings.inference_backend)
         self.detector.accident_conf = self.settings.accident_conf
         self.detector.vehicle_conf = self.settings.vehicle_conf
 
         # Each camera session gets a dedicated YOLO vehicle model to ensure BoT-SORT
         # tracking state and optical flow pyramids remain fully isolated across concurrent cameras.
-        vehicle_model_inst = YOLO("models/yolo11n.pt")
+        backend = self.settings.inference_backend.lower()
+        veh_weights = "models/yolo11n.onnx" if backend == "onnx" and os.path.exists("models/yolo11n.onnx") else "models/yolo11n.pt"
+        vehicle_model_inst = YOLO(veh_weights)
         self.tracker = VehicleTracker(
             vehicle_model=vehicle_model_inst,
             tracker_type="botsort.yaml",

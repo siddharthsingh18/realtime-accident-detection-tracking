@@ -24,6 +24,7 @@ class PipelineSettings(BaseModel):
     tentative_grace_seconds: float = Field(0.07, ge=0.02, le=5.00, description="Seconds before dropping unconfirmed tentative zone")
     use_collision_heuristic: bool = Field(True, description="Enable kinematic collision detection heuristic")
     device: Literal["auto", "cpu", "mps", "cuda"] = Field("auto", description="Compute device")
+    inference_backend: Literal["pytorch", "onnx"] = Field("pytorch", description="Inference runtime backend: pytorch or onnx")
     save_output: bool = Field(False, description="Persist video output to disk")
 
 

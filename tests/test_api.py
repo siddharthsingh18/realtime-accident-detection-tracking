@@ -217,3 +217,17 @@ def test_processor_dropped_frames_tracking():
     tel2.dropped_frames = processor.dropped_frames
     assert tel2.dropped_frames == 1
 
+
+# 8. ONNX Inference Backend Initialization & Frame Processing
+def test_onnx_backend_configuration():
+    settings = PipelineSettings(inference_backend="onnx")
+    processor = FrameProcessor(settings=settings, fps=30.0, total_frames=5)
+    synthetic_frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    jpeg, telemetry, _ = processor.process(synthetic_frame, frame_idx=0)
+    assert jpeg is not None
+    assert telemetry.frame_idx == 0
+    assert telemetry.vehicles_in_frame == 0
+    assert processor.settings.inference_backend == "onnx"
+
+

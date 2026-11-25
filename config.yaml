@@ -5,6 +5,10 @@
 # Hardware Device: "cuda", "cpu", or "auto"
 device: "auto"
 
+# Inference Runtime Backend: "pytorch" (default) or "onnx"
+inference:
+  backend: "pytorch"
+
 # YOLO Models Configuration
 models:
   # Custom-trained model for Road Accident Detection (YOLOv8s architecture)
