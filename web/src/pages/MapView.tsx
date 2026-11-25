@@ -9,17 +9,13 @@ import { api } from "../api/client";
 import { CameraItem, IncidentItem } from "../api/types";
 import { MAP_CONFIG } from "../config/mapConfig";
 import { GlassCard } from "../components/ui/GlassCard";
-import { StatusPill } from "../components/ui/StatusPill";
 
 import {
   MapPin,
-  Camera,
   AlertTriangle,
   Flame,
-  Layers,
   Clock,
   Maximize2,
-  Eye,
   Radio,
   WifiOff,
   Compass,
@@ -44,7 +40,6 @@ export const MapView: React.FC = () => {
   const [showFovCones, setShowFovCones] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [isTileOffline, setIsTileOffline] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   // Store subscriptions
   const {
@@ -75,8 +70,6 @@ export const MapView: React.FC = () => {
       setHistoricalIncidents(incs.items);
     } catch (err) {
       console.warn("Failed to load map data:", err);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -560,6 +553,30 @@ export const MapView: React.FC = () => {
             </div>
 
             {/* Layer Toggles */}
+            <button
+              onClick={() => setShowCameras(!showCameras)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-mono font-semibold flex items-center gap-1.5 transition ${
+                showCameras
+                  ? "bg-cyan-950/80 text-cyan-300 border-cyan-500/60 shadow-[0_0_10px_rgba(6,182,212,0.25)]"
+                  : "bg-slate-900/80 text-slate-400 border-slate-700 hover:text-white"
+              }`}
+              title="Toggle Camera Markers"
+            >
+              <span>Cams</span>
+            </button>
+
+            <button
+              onClick={() => setShowIncidents(!showIncidents)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-mono font-semibold flex items-center gap-1.5 transition ${
+                showIncidents
+                  ? "bg-amber-950/80 text-amber-300 border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.25)]"
+                  : "bg-slate-900/80 text-slate-400 border-slate-700 hover:text-white"
+              }`}
+              title="Toggle Historical Incident Markers"
+            >
+              <span>Incidents</span>
+            </button>
+
             <button
               onClick={() => setShowFovCones(!showFovCones)}
               className={`px-2.5 py-1.5 rounded-xl border text-xs font-mono font-semibold flex items-center gap-1.5 transition ${

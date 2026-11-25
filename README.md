@@ -167,6 +167,60 @@ The platform features an operator-grade **Incident Command Console** designed fo
 | ![Review Queue](docs/screenshots/review_queue.png) | ![Incident Detail](docs/screenshots/incident_detail.png) |
 | **Operator Verdict Analytics** | **Ignore-Region Polygon Editor** |
 | ![Analytics](docs/screenshots/analytics_view.png) | ![Cameras](docs/screenshots/cameras_view.png) |
+| **GIS Situational Map (Dark Mode)** | **GIS Situational Map (Light Mode)** |
+| ![GIS Map Dark](docs/screenshots/map_view_dark.png) | ![GIS Map Light](docs/screenshots/map_view_light.png) |
+| **Live Incident Geo-Beacon Alert** | **Interactive Location & Heading Picker** |
+| ![GIS Incident Alert](docs/screenshots/map_view_incident_alert.png) | ![Camera Location Picker](docs/screenshots/map_view_dark.png) |
+
+---
+
+## Interactive GIS Map & Spatial Situational Awareness
+
+The console includes an interactive GIS map view (`/map`) designed for city-wide and multi-corridor surveillance operations:
+
+- **Geo-Referenced Camera Markers**: Live indicators showing camera status (`Incident` [pulsing red beacon], `Online/Streaming` [emerald cyan], `Idle/Offline` [slate]).
+- **Field-of-View (FOV) Directional Cones**: Rendered on the map for cameras with a known orientation `heading` (0–360°), providing operators with immediate orientation context.
+- **Marker Clustering**: Automatically groups dense camera deployments at zoom levels $\le 12$, maintaining smooth rendering and decluttering the map.
+- **Live Incident Pan & Ease**: When a verified collision is detected via WebSocket telemetry, the camera marker flashes red and the map eases smoothly to the incident without interrupting operator pan/zoom interactions.
+- **Historical Incident Markers & Time Filtering**: Toggle between `1 h`, `24 h`, and `7 d` historical windows. Severity-coded markers with dual icon + color cues indicate confirmed collisions.
+- **Incident Density Heatmap**: Optional heatmap layer highlighting high-risk intersections and collision clusters over the selected time window.
+- **Interactive Camera Placement**: Operators can configure or fine-tune camera latitude, longitude, and heading directly in the Cameras console with an interactive Leaflet map pin and coordinate inputs with strict bounds validation (-90..90, -180..180, 0..360°).
+- **Zero-Footprint Lazy Loading**: Leaflet and its CSS are dynamically loaded on-demand via `React.lazy()`. The initial bundle size increases by **0 bytes**, and background rendering loops pause when navigating away or switching tabs.
+
+### Public Tile Server Usage Policy Notice
+
+> [!IMPORTANT]
+> The default development configuration uses public CartoDB Dark Matter / OpenStreetMap tiles. OpenStreetMap tile servers have strict usage policies (see [OSM Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/)) and do **not** permit high-volume, commercial, or automated production streaming.
+> 
+> For staging and production deployments, configure your own tile server or commercial provider (e.g., Mapbox, MapTiler, Stadia Maps) via the environment variable:
+> ```bash
+> VITE_MAP_TILE_URL="https://your-tile-provider.example.com/{z}/{x}/{y}.png"
+> VITE_MAP_ATTRIBUTION="&copy; Your Map Provider"
+> ```
+> No API keys are hardcoded in the codebase.
+
+### Synthetic Demo Data Seeding Script
+
+For testing and local development, a dedicated script seeds realistic demo cameras across coordinates:
+
+```bash
+# Seed 4 synthetic cameras with coordinates and headings around New Delhi
+python scripts/seed_demo_cameras.py
+
+# Remove seeded demo cameras
+python scripts/seed_demo_cameras.py --remove
+```
+
+### Verified GIS Performance & Memory Benchmark
+
+Measured concurrently using Playwright with LiveWall multi-camera streaming active in a parallel tab:
+
+| Metric | Map Closed (LiveWall Only) | Map Open Concurrently | Delta / Impact |
+|---|---|---|---|
+| **LiveWall Video Canvas FPS** | 16.2 FPS | **14.9 FPS** | Negligible (<8% variation) |
+| **JS Heap Memory** | 14.5 MB | **27.5 MB** | +13.0 MB (Full Leaflet canvas + layers) |
+| **Leaflet Bundle Overhead** | — | **43.5 kB (gzip)** | Isolated in split chunk (`0 bytes` to initial app bundle) |
+| **Background Tab Throttling** | — | **0 FPS (Paused)** | Canvas loops halted on hidden tab |
 
 ---
 
@@ -333,7 +387,7 @@ visualization:
 pytest tests/ -v
 ```
 
-### React Frontend Test Suite (29 tests)
+### React Frontend Test Suite (44 tests, 11 test suites)
 ```bash
 cd web && npm test -- --run
 ```
@@ -344,9 +398,13 @@ cd web && npm run typecheck
 cd web && npm run build
 ```
 
-### Automated Multi-Feed Playwright Performance Benchmark
+### Automated Multi-Feed Playwright Performance & GIS Benchmarks
 ```bash
+# Streaming performance benchmark
 node web/scripts/run_benchmarks.js
+
+# GIS Situational Map benchmark and verification
+node web/scripts/verify_gis_map.js
 ```
 
 ---
@@ -356,6 +414,8 @@ node web/scripts/run_benchmarks.js
 1. **Stationary Camera Assumption**: Ground-plane homography calibration and 2D bounding box kinematics assume a static overhead CCTV perspective. Moving cameras (dashcams, drones) require dynamic egomotion compensation.
 2. **Appearance ReID Overhead**: Enabling BoT-SORT ReID (`with_reid: true`) requires deep feature extraction per detected vehicle, adding ~10–15 ms per frame on CPU.
 3. **Threshold Tuning**: Kinematic and state machine thresholds should be tuned on a validation set representative of the target camera angle, focal length, and typical road speed limit before deploying in production `require` mode.
+4. **Tile Provider Limits**: The default tile layer connects to public OSM-compatible endpoints with strict rate limits and fair-use guidelines. Enterprise deployments require a dedicated raster/vector tile server or licensed provider.
+5. **Coordinate Reference System**: Spatial coordinates use standard WGS-84 (`EPSG:4326`) latitude/longitude mapped to Web Mercator (`EPSG:3857`). Highly specialized local state plane projections require re-projection to standard lat/lng before ingestion.
 
 ---
 

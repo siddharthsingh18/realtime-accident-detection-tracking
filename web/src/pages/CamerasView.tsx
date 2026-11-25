@@ -7,7 +7,6 @@ import { CameraLocationPicker } from "../components/CameraLocationPicker";
 import {
   Camera,
   MapPin,
-  Info,
   Trash2,
   Undo2,
   ShieldAlert,
