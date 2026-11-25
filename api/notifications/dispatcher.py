@@ -142,15 +142,14 @@ class NotificationDispatcher:
                 continue
 
             if not notifier.is_configured():
-                if payload.is_test:
-                    db.log_notification(
-                        incident_id=payload.incident_id,
-                        camera_id=payload.camera_id,
-                        channel=ch_name,
-                        status="failed",
-                        attempts=1,
-                        last_error=f"Channel '{ch_name}' is not configured (missing environment variables)",
-                    )
+                db.log_notification(
+                    incident_id=payload.incident_id,
+                    camera_id=payload.camera_id,
+                    channel=ch_name,
+                    status="failed",
+                    attempts=1 if payload.is_test else 0,
+                    last_error=f"Channel '{ch_name}' is not configured (missing environment variables)",
+                )
                 continue
 
             # Attempt delivery with exponential backoff (up to 3 attempts)

@@ -321,7 +321,7 @@ class FrameProcessor:
                 zid = ev.zone_id
                 target_zone = next((z for z in confirmed_accidents if z.zone_id == zid), None)
                 if target_zone:
-                    inc_id = f"inc_{self.camera_id}_{zid}_{timestamp_ms}"
+                    inc_id = f"inc_{self.camera_id}_{zid}_{timestamp_ms}_{int(time.time())}"
                     self.active_incidents_by_zone[zid] = inc_id
 
                     # Save snapshot immediately

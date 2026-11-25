@@ -124,7 +124,7 @@ def insert_incident(
     try:
         with conn:
             conn.execute("""
-            INSERT INTO incidents (
+            INSERT OR REPLACE INTO incidents (
                 id, camera_id, session_id, zone_id, origin,
                 confirmed_at, peak_conf, bbox_json, involved_ids_json,
                 snapshot_path, clip_path, settings_json, model_info_json
