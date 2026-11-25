@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { GlassCard } from "../components/ui/GlassCard";
 import { VideoHudOverlay } from "../components/ui/VideoHudOverlay";
+import { perfMonitor } from "../utils/perfMonitor";
 
 export const LiveWall: React.FC = () => {
   const navigate = useNavigate();
@@ -334,12 +335,14 @@ const CameraTile: React.FC<TileProps> = ({
         }
         const canvas = canvasRef.current;
         if (canvas) {
+          const t0 = performance.now();
           if (canvas.width !== bmp.width || canvas.height !== bmp.height) {
             canvas.width = bmp.width;
             canvas.height = bmp.height;
           }
           const ctx = canvas.getContext("2d");
           if (ctx) ctx.drawImage(bmp, 0, 0);
+          perfMonitor.recordFrameDrawn(performance.now() - t0);
         }
         bmp.close();
       })

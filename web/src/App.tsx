@@ -7,6 +7,7 @@ import "./i18n/config";
 
 // Lazy-loaded routes for code-splitting & performance budget
 const LiveWall = lazy(() => import("./pages/LiveWall").then((m) => ({ default: m.LiveWall })));
+const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const AnalyzeView = lazy(() => import("./pages/AnalyzeView").then((m) => ({ default: m.AnalyzeView })));
 const FocusView = lazy(() => import("./pages/FocusView").then((m) => ({ default: m.FocusView })));
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue").then((m) => ({ default: m.ReviewQueue })));
@@ -41,6 +42,7 @@ export const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<AppShell />}>
                 <Route index element={<LiveWall />} />
+                <Route path="dashboard" element={<Dashboard />} />
                 <Route path="analyze" element={<AnalyzeView />} />
                 <Route path="camera/:id" element={<FocusView />} />
                 <Route path="incidents" element={<ReviewQueue />} />

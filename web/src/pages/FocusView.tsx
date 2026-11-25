@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { api } from "../api/client";
 import { StreamWebSocket } from "../api/websocket";
 import { ClientFrameRingBuffer } from "../utils/frameBuffer";
+import { perfMonitor } from "../utils/perfMonitor";
 import { MOCK_TELEMETRY_SEQUENCE, createMockFrameBlob } from "../mock/mockData";
 
 import { VectorOverlayCanvas } from "../components/VectorOverlayCanvas";
@@ -231,6 +232,7 @@ export const FocusView: React.FC = () => {
   // Draw frame on canvas
   useEffect(() => {
     if (!latestFrame || !canvasRef.current) return;
+    const t0 = performance.now();
     createImageBitmap(latestFrame).then((bmp) => {
       const canvas = canvasRef.current;
       if (canvas) {
@@ -240,6 +242,7 @@ export const FocusView: React.FC = () => {
         }
         const ctx = canvas.getContext("2d");
         if (ctx) ctx.drawImage(bmp, 0, 0);
+        perfMonitor.recordFrameDrawn(performance.now() - t0);
       }
       bmp.close();
     });

@@ -136,3 +136,7 @@ class PerformanceTracker {
 }
 
 export const perfMonitor = new PerformanceTracker();
+
+if (typeof window !== "undefined") {
+  (window as any).__perfMonitor = perfMonitor;
+}
