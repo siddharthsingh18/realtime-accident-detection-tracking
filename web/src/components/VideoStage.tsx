@@ -25,99 +25,122 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
     }))
   );
 
-  const currentBitmapRef = useRef<ImageBitmap | null>(null);
+  const isDecodingRef = useRef(false);
+  const pendingBlobRef = useRef<Blob | null>(null);
 
-  // Render incoming Blob frame onto canvas
+  // Render incoming Blob frame onto canvas (drops intermediate frames when decoder is busy)
   useEffect(() => {
     if (!latestFrame) return;
 
+    if (isDecodingRef.current) {
+      pendingBlobRef.current = latestFrame;
+      return;
+    }
+
     let isCancelled = false;
+    isDecodingRef.current = true;
 
-    createImageBitmap(latestFrame)
-      .then((bitmap) => {
-        if (isCancelled) {
-          bitmap.close();
-          return;
-        }
-
-        // Close previously held bitmap to free GPU/memory
-        if (currentBitmapRef.current) {
-          currentBitmapRef.current.close();
-        }
-        currentBitmapRef.current = bitmap;
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        // Auto-adjust canvas resolution to match source video
-        if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-          canvas.width = bitmap.width;
-          canvas.height = bitmap.height;
-        }
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        requestAnimationFrame(() => {
-          const t0 = performance.now();
-          ctx.drawImage(bitmap, 0, 0);
-
-          // Optional Client-side Bounding Box Overlay (defaults to off)
-          if (showClientBboxOverlay && zones) {
-            zones.forEach((zone) => {
-              const [x1, y1, x2, y2] = zone.bbox;
-              const w = x2 - x1;
-              const h = y2 - y1;
-
-              ctx.lineWidth = 3;
-              if (zone.status === "ACTIVE") {
-                ctx.strokeStyle = "rgba(239, 68, 68, 0.9)"; // Red
-                ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
-              } else if (zone.status === "MAINTAINED") {
-                ctx.strokeStyle = "rgba(245, 158, 11, 0.9)"; // Amber
-                ctx.fillStyle = "rgba(245, 158, 11, 0.2)";
-              } else {
-                ctx.strokeStyle = "rgba(148, 163, 184, 0.7)"; // Tentative
-                ctx.fillStyle = "rgba(148, 163, 184, 0.1)";
-              }
-
-              ctx.strokeRect(x1, y1, w, h);
-              ctx.fillRect(x1, y1, w, h);
-
-              // Pill label
-              const label = `Client Overlay: Zone #${zone.zone_id} (${Math.round(
-                zone.conf * 100
-              )}%)`;
-              ctx.font = "bold 14px monospace";
-              const textWidth = ctx.measureText(label).width;
-              ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
-              ctx.fillRect(x1, Math.max(0, y1 - 24), textWidth + 12, 22);
-              ctx.fillStyle = "#ffffff";
-              ctx.fillText(label, x1 + 6, Math.max(16, y1 - 8));
-            });
+    const processBlob = (blob: Blob) => {
+      createImageBitmap(blob)
+        .then((bitmap) => {
+          if (isCancelled) {
+            bitmap.close();
+            isDecodingRef.current = false;
+            return;
           }
-          perfMonitor.recordFrameDrawn(performance.now() - t0);
+
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            bitmap.close();
+            isDecodingRef.current = false;
+            return;
+          }
+
+          // Auto-adjust canvas resolution to match source video
+          if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+          }
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            bitmap.close();
+            isDecodingRef.current = false;
+            return;
+          }
+
+          requestAnimationFrame(() => {
+            const t0 = performance.now();
+            ctx.drawImage(bitmap, 0, 0);
+
+            // Optional Client-side Bounding Box Overlay (defaults to off)
+            if (showClientBboxOverlay && zones) {
+              zones.forEach((zone) => {
+                const [x1, y1, x2, y2] = zone.bbox;
+                const w = x2 - x1;
+                const h = y2 - y1;
+
+                ctx.lineWidth = 3;
+                if (zone.status === "ACTIVE") {
+                  ctx.strokeStyle = "rgba(239, 68, 68, 0.9)"; // Red
+                  ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
+                } else if (zone.status === "MAINTAINED") {
+                  ctx.strokeStyle = "rgba(245, 158, 11, 0.9)"; // Amber
+                  ctx.fillStyle = "rgba(245, 158, 11, 0.2)";
+                } else {
+                  ctx.strokeStyle = "rgba(148, 163, 184, 0.7)"; // Tentative
+                  ctx.fillStyle = "rgba(148, 163, 184, 0.1)";
+                }
+
+                ctx.strokeRect(x1, y1, w, h);
+                ctx.fillRect(x1, y1, w, h);
+
+                // Pill label
+                const label = `Client Overlay: Zone #${zone.zone_id} (${Math.round(
+                  zone.conf * 100
+                )}%)`;
+                ctx.font = "bold 14px monospace";
+                const textWidth = ctx.measureText(label).width;
+                ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+                ctx.fillRect(x1, Math.max(0, y1 - 24), textWidth + 12, 22);
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(label, x1 + 6, Math.max(16, y1 - 8));
+              });
+            }
+            perfMonitor.recordFrameDrawn(performance.now() - t0);
+
+            // Close bitmap immediately after drawing to free GPU texture memory
+            bitmap.close();
+
+            // Process newest frame if one arrived during decode
+            if (pendingBlobRef.current) {
+              const nextBlob = pendingBlobRef.current;
+              pendingBlobRef.current = null;
+              processBlob(nextBlob);
+            } else {
+              isDecodingRef.current = false;
+            }
+          });
+        })
+        .catch((err) => {
+          console.debug("Frame bitmap decode skipped:", err);
+          if (pendingBlobRef.current) {
+            const nextBlob = pendingBlobRef.current;
+            pendingBlobRef.current = null;
+            processBlob(nextBlob);
+          } else {
+            isDecodingRef.current = false;
+          }
         });
-      })
-      .catch((err) => {
-        // Can fail if Blob is aborted or invalid
-        console.debug("Frame bitmap decode skipped:", err);
-      });
+    };
+
+    processBlob(latestFrame);
 
     return () => {
       isCancelled = true;
+      isDecodingRef.current = false;
     };
   }, [latestFrame, showClientBboxOverlay, zones]);
-
-  // Cleanup bitmap on unmount
-  useEffect(() => {
-    return () => {
-      if (currentBitmapRef.current) {
-        currentBitmapRef.current.close();
-        currentBitmapRef.current = null;
-      }
-    };
-  }, []);
 
   const hasFrame = latestFrame !== null;
 

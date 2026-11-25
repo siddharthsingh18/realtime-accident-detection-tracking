@@ -114,11 +114,17 @@ export const FocusView: React.FC = () => {
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Frame processing and ring buffering
+  // Frame processing and ring buffering (throttled metadata updates to 500ms)
+  const lastBufferUpdateRef = useRef<number>(0);
   const handleFrameArrived = useCallback((blob: Blob, frameIdx: number, timestampMs: number) => {
     ringBufferRef.current.push(frameIdx, timestampMs, blob);
-    setBufferCount(ringBufferRef.current.getCount());
-    setMemoryMB(ringBufferRef.current.getMemoryUsageMB());
+
+    const now = performance.now();
+    if (now - lastBufferUpdateRef.current >= 500) {
+      lastBufferUpdateRef.current = now;
+      setBufferCount(ringBufferRef.current.getCount());
+      setMemoryMB(ringBufferRef.current.getMemoryUsageMB());
+    }
 
     // Only update displayed canvas if in LIVE mode
     if (scrubIndex === null) {

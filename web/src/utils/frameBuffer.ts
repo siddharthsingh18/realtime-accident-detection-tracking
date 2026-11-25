@@ -9,9 +9,11 @@ export class ClientFrameRingBuffer {
   private buffer: BufferedFrame[] = [];
   private totalBytes: number = 0;
   private maxBytes: number;
+  private maxFrames: number;
 
-  constructor(maxMegabytes: number = 60) {
+  constructor(maxMegabytes: number = 60, maxFrames: number = 300) {
     this.maxBytes = maxMegabytes * 1024 * 1024;
+    this.maxFrames = maxFrames;
   }
 
   public push(frameIdx: number, timestampMs: number, blob: Blob) {
@@ -19,8 +21,11 @@ export class ClientFrameRingBuffer {
     this.buffer.push({ frameIdx, timestampMs, blob, sizeBytes: size });
     this.totalBytes += size;
 
-    // Prune oldest frames if exceeding memory budget
-    while (this.totalBytes > this.maxBytes && this.buffer.length > 1) {
+    // Prune oldest frames if exceeding memory budget or max frame count
+    while (
+      (this.totalBytes > this.maxBytes || this.buffer.length > this.maxFrames) &&
+      this.buffer.length > 1
+    ) {
       const removed = this.buffer.shift();
       if (removed) {
         this.totalBytes -= removed.sizeBytes;
