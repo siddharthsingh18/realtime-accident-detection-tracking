@@ -76,7 +76,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
 
   return (
     <div
-      className={`inline-flex items-center rounded-full font-mono font-bold tracking-wider uppercase border backdrop-blur-md transition-all duration-300 ${current.bg} ${
+      className={`inline-flex items-center rounded-full font-mono font-bold tracking-wider uppercase border transition-all duration-300 ${current.bg} ${
         allowMotion ? current.halo : ""
       } ${sizeClasses} ${className}`}
     >

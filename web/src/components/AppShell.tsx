@@ -188,7 +188,9 @@ export const AppShell: React.FC = () => {
       <AmbientMeshBackground />
 
       {/* Top Bar */}
-      <header className="border-b border-slate-800 bg-slate-950/85 backdrop-blur-xl sticky top-0 z-30 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-4 shadow-xl relative overflow-hidden">
+      <header className={`border-b border-slate-800 sticky top-0 z-30 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-4 shadow-xl relative overflow-hidden ${
+        effectsQuality === "high" ? "bg-slate-950/85 backdrop-blur-xl" : "bg-slate-950"
+      }`}>
         {/* Subtle Scanlines Overlay */}
         <div className="absolute inset-0 scanlines opacity-15 pointer-events-none" />
 
@@ -320,7 +322,9 @@ export const AppShell: React.FC = () => {
       {/* Main Body with Left Nav & Content */}
       <div className="flex-1 flex overflow-hidden relative z-10">
         {/* Left Navigation */}
-        <aside className="w-14 sm:w-56 border-r border-slate-800 bg-slate-950/70 backdrop-blur-xl flex flex-col justify-between py-3 px-2 sm:px-3 shadow-2xl">
+        <aside className={`w-14 sm:w-56 border-r border-slate-800 flex flex-col justify-between py-3 px-2 sm:px-3 shadow-2xl ${
+          effectsQuality === "high" ? "bg-slate-950/70 backdrop-blur-xl" : "bg-slate-950"
+        }`}>
           <nav className="space-y-1">
             {navItems.map((item) => {
               const isActive = location.pathname === item.to || (item.to.startsWith("/camera") && location.pathname.startsWith("/camera"));

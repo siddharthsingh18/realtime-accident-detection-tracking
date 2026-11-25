@@ -24,7 +24,7 @@ export const TimelineScrubber: React.FC<Props> = ({
   const activeValue = currentScrubIndex !== null ? currentScrubIndex : maxIdx;
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 backdrop-blur space-y-2 shadow-lg">
+    <div className="bg-slate-900/95 border border-slate-800 rounded-xl p-3 space-y-2 shadow-lg">
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
           <button

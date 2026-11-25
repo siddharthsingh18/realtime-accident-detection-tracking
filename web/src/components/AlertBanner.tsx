@@ -32,7 +32,7 @@ export const AlertBanner: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10">
         <div className="flex items-center gap-3">
           <div
-            className={`p-2.5 rounded-lg backdrop-blur bg-black/20 text-white ${
+            className={`p-2.5 rounded-lg bg-black/40 text-white ${
               isAlert ? "animate-bounce motion-reduce:animate-none" : ""
             }`}
           >
@@ -72,7 +72,7 @@ export const AlertBanner: React.FC = () => {
         </div>
 
         {isAlert && (
-          <div className="self-end sm:self-center px-3 py-1.5 rounded-lg bg-black/30 border border-white/20 text-xs font-mono font-semibold tracking-wider text-yellow-200 backdrop-blur">
+          <div className="self-end sm:self-center px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-xs font-mono font-semibold tracking-wider text-yellow-200">
             ACTION REQUIRED
           </div>
         )}

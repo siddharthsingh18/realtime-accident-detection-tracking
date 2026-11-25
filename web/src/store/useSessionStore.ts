@@ -111,7 +111,7 @@ function getDefaultEffectsQuality(): EffectsQuality {
     }
   } catch {}
   if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    return "off";
+    return "low";
   }
   if (typeof navigator !== "undefined" && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) {
     return "low";

@@ -36,7 +36,7 @@ export const SettingsSidebar: React.FC<Props> = ({
   };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-5 backdrop-blur shadow-lg">
+    <div className="bg-slate-900/95 border border-slate-800 rounded-xl p-4 space-y-5 shadow-lg">
       <div className="flex items-center justify-between pb-3 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <Sliders className="w-4 h-4 text-emerald-400" />

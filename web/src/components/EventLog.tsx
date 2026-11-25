@@ -31,7 +31,7 @@ export const EventLog: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-lg backdrop-blur flex flex-col h-full">
+    <div className="bg-slate-900/95 border border-slate-800 rounded-xl p-4 shadow-lg flex flex-col h-full">
       <div className="flex items-center justify-between pb-3 border-b border-slate-800">
         <div className="flex items-center gap-2">
           <ListChecks className="w-4 h-4 text-emerald-400" />

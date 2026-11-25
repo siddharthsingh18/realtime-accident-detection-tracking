@@ -242,7 +242,7 @@ export const Dashboard: React.FC = () => {
       } transition-colors duration-200 flex flex-col font-sans`}
     >
       {/* Top Header */}
-      <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 px-4 sm:px-6 py-3">
+      <header className="border-b border-slate-800 bg-slate-900/95 sticky top-0 z-30 px-4 sm:px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md">
@@ -302,7 +302,7 @@ export const Dashboard: React.FC = () => {
         <AlertBanner />
 
         {/* Source Selector & Stream Controls Bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-2 sm:p-2.5 rounded-2xl backdrop-blur">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 p-2 sm:p-2.5 rounded-2xl">
           <SourceTabs />
           <Controls
             onStart={handleStart}

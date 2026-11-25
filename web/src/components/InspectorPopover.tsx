@@ -16,7 +16,7 @@ export const InspectorPopover: React.FC<Props> = ({ target }) => {
   return (
     <div
       style={{ left: `${Math.min(target.x + 12, window.innerWidth - 260)}px`, top: `${Math.max(10, target.y - 40)}px` }}
-      className="absolute z-30 pointer-events-none bg-slate-900/95 border border-slate-700 rounded-xl p-3 shadow-2xl backdrop-blur text-xs w-64 animate-fade-in"
+      className="absolute z-30 pointer-events-none bg-slate-900/95 border border-slate-700 rounded-xl p-3 shadow-2xl text-xs w-64 animate-fade-in"
     >
       {isZone && zone && (
         <div className="space-y-1.5">

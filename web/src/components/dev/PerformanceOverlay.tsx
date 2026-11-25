@@ -32,7 +32,7 @@ export const PerformanceOverlay: React.FC = () => {
       <button
         onClick={() => setIsOpen(true)}
         title="Open Performance Overlay (Ctrl+Shift+P)"
-        className="fixed bottom-3 right-3 z-50 p-2 rounded-full bg-slate-900/80 border border-slate-700/80 text-emerald-400 hover:bg-slate-800 transition-all shadow-lg text-xs flex items-center gap-1.5 backdrop-blur-sm opacity-60 hover:opacity-100"
+        className="fixed bottom-3 right-3 z-50 p-2 rounded-full bg-slate-900/90 border border-slate-700/80 text-emerald-400 hover:bg-slate-800 transition-all shadow-lg text-xs flex items-center gap-1.5 opacity-60 hover:opacity-100"
       >
         <Activity className="w-3.5 h-3.5" />
         <span className="font-mono text-[10px]">PERF</span>
@@ -44,7 +44,7 @@ export const PerformanceOverlay: React.FC = () => {
     <div
       role="region"
       aria-label="Performance Diagnostics"
-      className="fixed bottom-4 right-4 z-50 w-80 rounded-xl bg-slate-950/95 border border-emerald-500/40 p-4 shadow-2xl backdrop-blur-md font-mono text-xs text-slate-200 select-none"
+      className="fixed bottom-4 right-4 z-50 w-80 rounded-xl bg-slate-950/95 border border-emerald-500/40 p-4 shadow-2xl font-mono text-xs text-slate-200 select-none"
     >
       <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
         <div className="flex items-center gap-2 text-emerald-400 font-semibold">

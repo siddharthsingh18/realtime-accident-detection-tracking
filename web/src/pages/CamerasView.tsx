@@ -513,15 +513,15 @@ export const CamerasView: React.FC = () => {
               {/* Status pill overlay */}
               <div className="absolute top-2 left-2 flex items-center gap-2">
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase backdrop-blur border ${
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border ${
                     mode === "ignore"
-                      ? "bg-rose-950/80 border-rose-800 text-rose-300"
-                      : "bg-emerald-950/80 border-emerald-800 text-emerald-300"
+                      ? "bg-rose-950/90 border-rose-800 text-rose-300"
+                      : "bg-emerald-950/90 border-emerald-800 text-emerald-300"
                   }`}
                 >
                   {mode === "ignore" ? "Exclusion Zone (Alerts Suppressed)" : "Detection Zone (ROI)"}
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-black/60 border border-slate-800 text-slate-300 backdrop-blur">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-black/80 border border-slate-800 text-slate-300">
                   {points.length} vertices
                 </span>
               </div>

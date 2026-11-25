@@ -24,7 +24,7 @@ export const ToastContainer: React.FC = () => {
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto p-3.5 rounded-xl border shadow-2xl backdrop-blur transition-all duration-300 animate-slide-up ${
+            className={`pointer-events-auto p-3.5 rounded-xl border shadow-2xl bg-slate-900/95 transition-all duration-300 animate-slide-up ${
               isAlert
                 ? "bg-red-950/90 border-red-700 text-white shadow-red-950/50"
                 : isUndo

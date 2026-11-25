@@ -421,7 +421,7 @@ const CameraTile: React.FC<TileProps> = ({
 
         {/* Paused Feed Standby Overlay */}
         {isPaused && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10">
+          <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center gap-2 z-10">
             <Pause className="w-6 h-6 text-amber-400" />
             <span className="text-xs font-semibold text-slate-300">Feed Standby / Paused</span>
             <button
@@ -437,7 +437,7 @@ const CameraTile: React.FC<TileProps> = ({
         )}
 
         {/* Floating Quick Action Overlay on hover */}
-        <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
           <button
             onClick={(e) => {
               e.stopPropagation();

@@ -66,7 +66,9 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
-      className={`spotlight-card rounded-2xl bg-surface/75 backdrop-blur-md border ${borderVariantClass} ${glowClass} ${className}`}
+      className={`spotlight-card rounded-2xl ${
+        effectsQuality === "high" ? "bg-surface/75 backdrop-blur-md" : "bg-slate-900/90"
+      } border ${borderVariantClass} ${glowClass} ${className}`}
       {...props}
     >
       {children}

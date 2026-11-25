@@ -53,7 +53,7 @@ export const ConnectionBadge: React.FC<Props> = ({ device = "auto" }) => {
   return (
     <div className="flex items-center gap-2 text-xs">
       <div
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur font-medium ${badgeColor}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-slate-900/90 font-medium ${badgeColor}`}
       >
         <span className={`w-2 h-2 rounded-full ${dotColor}`} />
         {icon}
