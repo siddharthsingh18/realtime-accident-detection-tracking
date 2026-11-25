@@ -1,13 +1,16 @@
 import React, { useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { useLocation } from "react-router-dom";
 import { useSessionStore } from "../../store/useSessionStore";
 
 // Low-poly intersection scene with moving light vehicles and rotating radar
 const RoadGrid: React.FC<{ hasAlert: boolean }> = ({ hasAlert }) => {
+  const sceneGroupRef = useRef<THREE.Group>(null);
   const radarRef = useRef<THREE.Group>(null);
   const vehiclesRef = useRef<THREE.InstancedMesh>(null);
   const beaconRef = useRef<THREE.PointLight>(null);
+  const lastUpdateRef = useRef<number>(0);
 
   // 12 light-trail vehicles moving along lanes
   const numVehicles = 12;
@@ -22,7 +25,30 @@ const RoadGrid: React.FC<{ hasAlert: boolean }> = ({ hasAlert }) => {
     }))
   );
 
+  // Explicit disposal of geometries and materials on unmount
+  useEffect(() => {
+    return () => {
+      if (sceneGroupRef.current) {
+        sceneGroupRef.current.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const m = child as THREE.Mesh;
+            if (m.geometry) m.geometry.dispose();
+            if (m.material) {
+              if (Array.isArray(m.material)) m.material.forEach((mat) => mat.dispose());
+              else m.material.dispose();
+            }
+          }
+        });
+      }
+    };
+  }, []);
+
   useFrame((state, delta) => {
+    // Cap rendering/physics updates to ~30 FPS to reduce GPU and main-thread overhead
+    const elapsed = state.clock.getElapsedTime();
+    if (elapsed - lastUpdateRef.current < 0.032) return;
+    lastUpdateRef.current = elapsed;
+
     // 1. Radar sweep rotation (capped speed)
     if (radarRef.current) {
       radarRef.current.rotation.y += delta * 1.5;
@@ -57,7 +83,7 @@ const RoadGrid: React.FC<{ hasAlert: boolean }> = ({ hasAlert }) => {
   });
 
   return (
-    <group position={[0, -0.4, 0]}>
+    <group ref={sceneGroupRef} position={[0, -0.4, 0]}>
       {/* Dark Road Plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <planeGeometry args={[18, 18]} />
@@ -121,11 +147,13 @@ const RoadGrid: React.FC<{ hasAlert: boolean }> = ({ hasAlert }) => {
 
 export const HeroTrafficScene: React.FC<{ className?: string }> = ({ className = "" }) => {
   const effectsQuality = useSessionStore((state) => state.effectsQuality);
-  const telemetry = useSessionStore((state) => state.telemetry);
+  // Scoped boolean selector: do not subscribe to high-frequency telemetry object
+  const hasAlert = useSessionStore((state) => (state.telemetry?.confirmed_accidents ?? 0) > 0);
   const [isVisible, setIsVisible] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
-  const hasAlert = (telemetry?.confirmed_accidents ?? 0) > 0;
+  const isLiveWall = location.pathname === "/wall" || location.pathname.startsWith("/camera");
 
   // IntersectionObserver to pause rendering when off-screen
   useEffect(() => {
@@ -150,8 +178,8 @@ export const HeroTrafficScene: React.FC<{ className?: string }> = ({ className =
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
-  if (effectsQuality === "off") {
-    // 2D Static High-Efficiency Fallback
+  // Do not run the 3D scene on Low or Off effects levels
+  if (effectsQuality === "off" || effectsQuality === "low") {
     return (
       <div
         ref={containerRef}
@@ -162,24 +190,26 @@ export const HeroTrafficScene: React.FC<{ className?: string }> = ({ className =
             <span className={`w-3 h-3 rounded-full ${hasAlert ? "bg-rose-500" : "bg-emerald-400"}`} />
           </div>
           <div className="font-display font-bold text-xs uppercase tracking-wider text-slate-300">
-            Telemetry Command Link Active
+            Telemetry Command Link Active (2D Mode)
           </div>
         </div>
       </div>
     );
   }
 
+  const shouldRender3D = isVisible && !isLiveWall;
+
   return (
     <div
       ref={containerRef}
       className={`relative rounded-2xl overflow-hidden border border-cyan-500/20 bg-slate-950/80 shadow-[0_0_30px_rgba(0,0,0,0.6)] ${className}`}
     >
-      {isVisible && (
+      {shouldRender3D && (
         <Canvas
           camera={{ position: [0, 9, 11], fov: 42 }}
-          frameloop={isVisible ? "always" : "never"}
-          dpr={effectsQuality === "low" ? 1 : Math.min(window.devicePixelRatio, 1.5)}
-          gl={{ powerPreference: "low-power", antialias: effectsQuality === "high" }}
+          frameloop={shouldRender3D ? "always" : "never"}
+          dpr={Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 1.5)}
+          gl={{ powerPreference: "low-power", antialias: true }}
         >
           <ambientLight intensity={0.4} />
           <directionalLight position={[10, 15, 10]} intensity={0.8} />
