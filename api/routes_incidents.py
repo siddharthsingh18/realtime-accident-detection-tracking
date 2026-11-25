@@ -3,17 +3,20 @@ import io
 import csv
 import zipfile
 import json
+import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Header, status
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse, JSONResponse
 
-from api import db
+from api import db, dossier
 from api.models import (
     IncidentItem,
     IncidentListResponse,
     IncidentVerdictUpdate,
     PipelineSettings,
 )
+
+logger = logging.getLogger("TrafficMonitor.API.RoutesIncidents")
 from api.range_response import create_range_response
 from api.compare import run_pipeline_simulation
 
@@ -135,13 +138,28 @@ def get_incident_audit(incident_id: str):
 
 
 @router.get("/{incident_id}/snapshot")
-def get_incident_snapshot(incident_id: str):
+def get_incident_snapshot(incident_id: str, phase: str = Query("impact")):
     inc = db.get_incident(incident_id)
     if not inc:
         raise HTTPException(status_code=404, detail="Incident not found")
+
+    if phase == "before":
+        p = inc.get("snapshot_before_path") or os.path.join("data", "incidents", f"{incident_id}_before.jpg")
+        if p and os.path.exists(p):
+            return FileResponse(p, media_type="image/jpeg")
+    elif phase == "after":
+        p = inc.get("snapshot_after_path") or os.path.join("data", "incidents", f"{incident_id}_after.jpg")
+        if p and os.path.exists(p):
+            return FileResponse(p, media_type="image/jpeg")
+
+    # Default impact snapshot
     snap_path = inc.get("snapshot_path")
     if snap_path and os.path.exists(snap_path):
         return FileResponse(snap_path, media_type="image/jpeg")
+
+    alt_impact = os.path.join("data", "incidents", f"{incident_id}_impact.jpg")
+    if os.path.exists(alt_impact):
+        return FileResponse(alt_impact, media_type="image/jpeg")
 
     # If file is missing, try default incident directory
     alt_path = os.path.join("data", "incidents", f"{incident_id}.jpg")
@@ -194,6 +212,137 @@ def download_evidence_zip(incident_id: str):
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={incident_id}_evidence.zip"},
     )
+
+
+@router.get("/{incident_id}/dossier.pdf")
+def get_incident_dossier_pdf(incident_id: str):
+    """
+    Returns an A4 PDF evidence dossier.
+    Cached on disk; re-generated on demand if invalidated or missing.
+    """
+    inc = db.get_incident(incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    cached_pdf = dossier.get_cached_dossier_pdf(incident_id)
+    if cached_pdf and os.path.exists(cached_pdf):
+        return FileResponse(
+            cached_pdf,
+            media_type="application/pdf",
+            filename=f"{incident_id}_dossier.pdf",
+        )
+
+    try:
+        data = dossier.assemble_dossier_data(incident_id)
+        out_path = os.path.join(dossier.INCIDENTS_DIR, f"{incident_id}_dossier.pdf")
+        dossier.generate_dossier_pdf(data, out_path=out_path)
+        return FileResponse(
+            out_path,
+            media_type="application/pdf",
+            filename=f"{incident_id}_dossier.pdf",
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate dossier PDF for {incident_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Dossier PDF generation failed: {str(e)}")
+
+
+@router.get("/{incident_id}/dossier.json")
+def get_incident_dossier_json(incident_id: str):
+    """Returns a structured JSON evidence dossier (Schema v1.0.0)."""
+    try:
+        data = dossier.assemble_dossier_data(incident_id)
+        json_payload = dossier.generate_dossier_json(data)
+        return JSONResponse(
+            content=json_payload,
+            headers={"Content-Disposition": f"attachment; filename={incident_id}_dossier.json"},
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    except Exception as e:
+        logger.error(f"Failed to export dossier JSON for {incident_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Dossier JSON export failed: {str(e)}")
+
+
+@router.get("/{incident_id}/dossier.cap.xml")
+def get_incident_dossier_cap_xml(incident_id: str):
+    """
+    Returns an OASIS Common Alerting Protocol (CAP 1.2) XML export.
+    Designated as experimental and not validated against live emergency dispatch systems.
+    """
+    try:
+        data = dossier.assemble_dossier_data(incident_id)
+        xml_content = dossier.generate_dossier_cap_xml(data)
+        return Response(
+            content=xml_content,
+            media_type="application/xml",
+            headers={"Content-Disposition": f"attachment; filename={incident_id}_dossier.cap.xml"},
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    except Exception as e:
+        logger.error(f"Failed to export CAP XML for {incident_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Dossier CAP XML export failed: {str(e)}")
+
+
+@router.get("/{incident_id}/bundle.zip")
+def download_incident_bundle_zip(incident_id: str):
+    """
+    Returns a unified archive containing:
+    - PDF Evidence Dossier
+    - Structured JSON Dossier
+    - OASIS CAP 1.2 XML
+    - Pre-roll, Impact, and Post-roll snapshots
+    - H.264 MP4 synchronized incident clip
+    """
+    inc = db.get_incident(incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    try:
+        data = dossier.assemble_dossier_data(incident_id)
+
+        # Ensure PDF exists in cache
+        cached_pdf = dossier.get_cached_dossier_pdf(incident_id)
+        if not cached_pdf or not os.path.exists(cached_pdf):
+            cached_pdf = os.path.join(dossier.INCIDENTS_DIR, f"{incident_id}_dossier.pdf")
+            dossier.generate_dossier_pdf(data, out_path=cached_pdf)
+
+        json_payload = dossier.generate_dossier_json(data)
+        cap_xml = dossier.generate_dossier_cap_xml(data)
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            # 1. Dossier PDF
+            if os.path.exists(cached_pdf):
+                zf.write(cached_pdf, arcname=f"{incident_id}_dossier.pdf")
+
+            # 2. Dossier JSON
+            zf.writestr(f"{incident_id}_dossier.json", json.dumps(json_payload, indent=2))
+
+            # 3. CAP 1.2 XML
+            zf.writestr(f"{incident_id}_dossier.cap.xml", cap_xml)
+
+            # 4. Snapshots
+            snaps = data.get("evidence_files", {})
+            for key, label in [("snapshot_before", "before"), ("snapshot_impact", "impact"), ("snapshot_after", "after")]:
+                p = snaps.get(key)
+                if p and os.path.exists(p):
+                    zf.write(p, arcname=f"{incident_id}_{label}.jpg")
+
+            # 5. Incident MP4 Clip
+            clip_path = snaps.get("clip")
+            if clip_path and os.path.exists(clip_path):
+                zf.write(clip_path, arcname=f"{incident_id}_clip.mp4")
+
+        zip_buffer.seek(0)
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={incident_id}_bundle.zip"},
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate evidence bundle for {incident_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Evidence bundle generation failed: {str(e)}")
 
 
 @router.post("/{incident_id}/replay")

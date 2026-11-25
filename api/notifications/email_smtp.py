@@ -5,6 +5,7 @@ from typing import Optional, List
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+from email.mime.application import MIMEApplication
 
 from api.notifications.base import BaseNotifier
 from api.notifications.models import AlertPayload, NotificationResult
@@ -129,6 +130,17 @@ class EmailSMTPNotifier(BaseNotifier):
                 msg.attach(img_part)
             except Exception as e:
                 logger.warning(f"Could not attach snapshot image to email: {self.sanitize_error(e)}")
+
+        # Attach PDF dossier if provided
+        if payload.pdf_path and os.path.exists(payload.pdf_path):
+            try:
+                with open(payload.pdf_path, "rb") as f:
+                    pdf_data = f.read()
+                pdf_part = MIMEApplication(pdf_data, _subtype="pdf")
+                pdf_part.add_header("Content-Disposition", "attachment", filename=f"{payload.incident_id}_dossier.pdf")
+                msg.attach(pdf_part)
+            except Exception as e:
+                logger.warning(f"Could not attach PDF dossier to email: {self.sanitize_error(e)}")
 
         try:
             if self.use_ssl:

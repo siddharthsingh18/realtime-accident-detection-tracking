@@ -18,6 +18,7 @@ class AlertPayload:
     severity: str = "HIGH"  # CRITICAL, HIGH, MEDIUM, LOW
     incident_url: str = ""
     snapshot_path: Optional[str] = None
+    pdf_path: Optional[str] = None
     is_test: bool = False
     metadata: Dict[str, Any] = field(default_factory=dict)
 
