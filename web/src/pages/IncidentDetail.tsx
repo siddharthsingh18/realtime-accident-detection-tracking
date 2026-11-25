@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import { IncidentItem } from "../api/types";
+import { IncidentItem, NotificationLogItem } from "../api/types";
 import { useSessionStore } from "../store/useSessionStore";
 import {
   Download,
@@ -15,6 +15,10 @@ import {
   History,
   HelpCircle,
   Info,
+  Bell,
+  RefreshCw,
+  XCircle,
+  CheckCircle2,
 } from "lucide-react";
 
 export const IncidentDetail: React.FC = () => {
@@ -24,6 +28,7 @@ export const IncidentDetail: React.FC = () => {
 
   const [incident, setIncident] = useState<IncidentItem | null>(null);
   const [auditRows, setAuditRows] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationLogItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Verdict state
@@ -46,12 +51,17 @@ export const IncidentDetail: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([api.getIncident(id), api.getIncidentAudit(id)])
-      .then(([inc, audit]) => {
+    Promise.all([
+      api.getIncident(id),
+      api.getIncidentAudit(id),
+      api.getIncidentNotifications(id).catch(() => []),
+    ])
+      .then(([inc, audit, notifs]) => {
         setIncident(inc);
         setVerdict(inc.verdict || null);
         setVerdictNote(inc.verdict_note || "");
         setAuditRows(audit);
+        setNotifications(notifs || []);
       })
       .catch((e) => console.warn("Failed to load incident detail:", e))
       .finally(() => setLoading(false));
@@ -344,6 +354,71 @@ export const IncidentDetail: React.FC = () => {
                 <span>{incident.model_info.accident_model || "YOLOv8s"}</span>
               </div>
             </div>
+          </div>
+
+          {/* Alert Notification Delivery Status */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs shadow-xl">
+            <h3 className="font-bold uppercase tracking-wider text-slate-200 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Bell className="w-4 h-4 text-rose-400" />
+                <span>Alert Notification Dispatch</span>
+              </span>
+              <span className="text-[10px] font-mono text-slate-500">
+                {notifications.length} delivery records
+              </span>
+            </h3>
+
+            {notifications.length === 0 ? (
+              <div className="text-[11px] text-slate-500 italic py-1">
+                No automated alerts logged for this incident (channels not configured or in cooldown).
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {notifications.map((n) => {
+                  let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
+                  let Icon = RefreshCw;
+                  if (n.status === "sent") {
+                    badgeClass = "bg-emerald-950/80 text-emerald-300 border-emerald-800";
+                    Icon = CheckCircle2;
+                  } else if (n.status === "failed") {
+                    badgeClass = "bg-rose-950/80 text-rose-300 border-rose-800";
+                    Icon = XCircle;
+                  } else if (n.status === "retrying" || n.status === "sending") {
+                    badgeClass = "bg-amber-950/80 text-amber-300 border-amber-800 animate-pulse";
+                    Icon = RefreshCw;
+                  }
+
+                  return (
+                    <div
+                      key={n.id}
+                      className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-start justify-between gap-2"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold uppercase text-slate-200 font-mono text-[11px]">
+                            {n.channel}
+                          </span>
+                          <span
+                            className={`flex items-center gap-1 text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border ${badgeClass}`}
+                          >
+                            <Icon className="w-3 h-3" />
+                            <span>{n.status}</span>
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          Attempts: {n.attempts}/3 • {new Date(n.created_at).toLocaleTimeString()}
+                        </div>
+                        {n.last_error && (
+                          <p className="text-[10px] text-rose-400 font-mono bg-rose-950/40 p-1 rounded mt-1">
+                            Error: {n.last_error}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Audit History Log */}

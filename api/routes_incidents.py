@@ -236,3 +236,11 @@ def replay_incident_tuning(incident_id: str, draft_settings: PipelineSettings):
         "warning": "Tuning on individual incidents may cause overfitting. Validate against continuous normal traffic footage.",
     }
 
+
+@router.get("/{incident_id}/notifications")
+def get_incident_notifications(incident_id: str):
+    inc = db.get_incident(incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return db.get_incident_notifications(incident_id)
+

@@ -177,6 +177,33 @@ export const SystemStatusResponseSchema = z.object({
 
 export type SystemStatusResponse = z.infer<typeof SystemStatusResponseSchema>;
 
+// --- Notification Schemas ---
+export const NotificationChannelInfoSchema = z.object({
+  channel: z.string(),
+  configured: z.boolean(),
+});
+
+export const NotificationSettingsResponseSchema = z.object({
+  cooldown_seconds: z.number(),
+  channels: z.record(z.string(), NotificationChannelInfoSchema),
+});
+
+export type NotificationSettingsResponse = z.infer<typeof NotificationSettingsResponseSchema>;
+
+export const NotificationLogItemSchema = z.object({
+  id: z.number(),
+  incident_id: z.string(),
+  camera_id: z.string(),
+  channel: z.string(),
+  status: z.string(),
+  attempts: z.number(),
+  last_error: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export type NotificationLogItem = z.infer<typeof NotificationLogItemSchema>;
+
 // --- Stats Schema ---
 export const StatsResponseSchema = z.object({
   total_incidents: z.number(),

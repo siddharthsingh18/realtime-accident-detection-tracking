@@ -19,6 +19,10 @@ import {
   StatsResponseSchema,
   CompareResponse,
   CompareResponseSchema,
+  NotificationSettingsResponse,
+  NotificationSettingsResponseSchema,
+  NotificationLogItem,
+  NotificationLogItemSchema,
 } from "./types";
 import { z } from "zod";
 
@@ -255,5 +259,33 @@ export const api = {
   async getDemos(): Promise<DemoItem[]> {
     const res = await fetch(`${API_BASE}/api/demos`, { headers: getAuthHeaders() });
     return handleResponse(res, z.array(DemoItemSchema));
+  },
+
+  // Notifications
+  async getNotificationSettings(): Promise<NotificationSettingsResponse> {
+    const res = await fetch(`${API_BASE}/api/notifications/settings`, { headers: getAuthHeaders() });
+    return handleResponse(res, NotificationSettingsResponseSchema);
+  },
+
+  async updateNotificationSettings(settings: { cooldown_seconds?: number }): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/notifications/settings`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(settings),
+    });
+    return res.json();
+  },
+
+  async sendTestNotification(channel: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/notifications/test/${channel}`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return res.json();
+  },
+
+  async getIncidentNotifications(incidentId: string): Promise<NotificationLogItem[]> {
+    const res = await fetch(`${API_BASE}/api/incidents/${incidentId}/notifications`, { headers: getAuthHeaders() });
+    return handleResponse(res, z.array(NotificationLogItemSchema));
   },
 };
