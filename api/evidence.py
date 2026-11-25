@@ -45,11 +45,14 @@ class SessionEvidenceRingBuffer:
             self.buffer.append(FrameBufferItem(frame_idx, timestamp_ms, frame.copy()))
 
     def capture_snapshot(self, incident_id: str, frame: np.ndarray) -> str:
-        """Saves high-res JPEG snapshot."""
+        """Saves high-res JPEG snapshot at moment of impact confirmation."""
         os.makedirs(INCIDENTS_DIR, exist_ok=True)
         snapshot_filename = f"{incident_id}.jpg"
         snapshot_path = os.path.join(INCIDENTS_DIR, snapshot_filename)
         cv2.imwrite(snapshot_path, frame, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+        # Also maintain explicit _impact.jpg alias
+        impact_path = os.path.join(INCIDENTS_DIR, f"{incident_id}_impact.jpg")
+        cv2.imwrite(impact_path, frame, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
         return snapshot_path
 
     def schedule_clip_capture(
@@ -61,7 +64,8 @@ class SessionEvidenceRingBuffer:
         on_complete: Optional[Any] = None,
     ):
         """
-        Schedules H.264 clip generation spanning pre-roll to post-roll frames.
+        Schedules H.264 clip generation spanning pre-roll to post-roll frames
+        and extracts 3-phase evidence snapshots (before, impact, after).
         Runs off the event loop in a background daemon thread.
         """
         pre_frames_count = int(pre_roll_seconds * self.fps)
@@ -97,7 +101,30 @@ class SessionEvidenceRingBuffer:
                     logger.warning(f"Empty clip frames slice for {incident_id}")
                     return
 
+                # 1. Save 3-phase evidence snapshots in background thread
+                before_snap_path = os.path.join(INCIDENTS_DIR, f"{incident_id}_before.jpg")
+                impact_snap_path = os.path.join(INCIDENTS_DIR, f"{incident_id}_impact.jpg")
+                after_snap_path = os.path.join(INCIDENTS_DIR, f"{incident_id}_after.jpg")
+
+                cv2.imwrite(before_snap_path, all_items[start_idx].annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+                cv2.imwrite(impact_snap_path, all_items[target_idx].annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+                cv2.imwrite(after_snap_path, all_items[end_idx - 1].annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+
+                # 2. Render H.264 MP4 clip
                 clip_path = _render_h264_clip(incident_id, clip_frames, self.fps)
+
+                # 3. Update DB asynchronously with generated evidence paths
+                try:
+                    from api import db
+                    db.update_incident_evidence_files(
+                        incident_id=incident_id,
+                        snapshot_before_path=before_snap_path,
+                        snapshot_after_path=after_snap_path,
+                        clip_path=clip_path,
+                    )
+                except Exception as dbe:
+                    logger.warning(f"Failed to update incident evidence paths for {incident_id}: {dbe}")
+
                 if on_complete:
                     on_complete(clip_path)
 

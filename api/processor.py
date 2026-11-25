@@ -382,6 +382,28 @@ class FrameProcessor:
                     snap_path = self.ring_buffer.capture_snapshot(inc_id, annotated_frame)
                     clip_path = f"data/incidents/{inc_id}.mp4"
 
+                    # Extract kinematic time series for involved tracks
+                    from api.dossier import extract_track_time_series
+                    is_cal = self.calibrator is not None and getattr(self.calibrator, "is_calibrated", False)
+                    time_series_data = extract_track_time_series(
+                        tracked_vehicles=tracked_vehicles,
+                        involved_ids=list(target_zone.involved_vehicle_ids),
+                        fps=current_fps,
+                        is_calibrated=is_cal,
+                    )
+
+                    # Read configurable pre-roll and post-roll duration from config
+                    pre_roll_s = 5.0
+                    post_roll_s = 5.0
+                    try:
+                        from api.main import load_yaml_config
+                        cfg = load_yaml_config() if os.path.exists("config.yaml") else {}
+                        dossier_cfg = cfg.get("dossier", {})
+                        pre_roll_s = float(dossier_cfg.get("pre_roll_seconds", 5.0))
+                        post_roll_s = float(dossier_cfg.get("post_roll_seconds", 5.0))
+                    except Exception:
+                        pass
+
                     # Insert into DB
                     now_iso = datetime.now(timezone.utc).isoformat()
                     model_meta = {
@@ -404,14 +426,15 @@ class FrameProcessor:
                         settings=self.settings.model_dump(),
                         model_info=model_meta,
                         kinematics=target_zone.kinematics,
+                        time_series=time_series_data,
                     )
 
                     # Schedule clip capture
                     self.ring_buffer.schedule_clip_capture(
                         incident_id=inc_id,
                         confirmed_frame_idx=frame_idx,
-                        pre_roll_seconds=5.0,
-                        post_roll_seconds=5.0,
+                        pre_roll_seconds=pre_roll_s,
+                        post_roll_seconds=post_roll_s,
                     )
 
                     # Trigger asynchronous multi-channel notification alert
@@ -429,6 +452,17 @@ class FrameProcessor:
                         cam_name = cam_info.get("name", self.camera_id) if cam_info else self.camera_id
                         sev = "CRITICAL" if len(target_zone.involved_vehicle_ids) >= 2 or (max_kmh and max_kmh > 40.0) else "HIGH"
 
+                        # Check if PDF dossier should be attached to alerts
+                        pdf_attach_path = None
+                        if dossier_cfg.get("attach_to_notifications", False):
+                            try:
+                                from api import dossier
+                                d_data = dossier.assemble_dossier_data(inc_id)
+                                pdf_attach_path = os.path.join(dossier.INCIDENTS_DIR, f"{inc_id}_dossier.pdf")
+                                dossier.generate_dossier_pdf(d_data, out_path=pdf_attach_path)
+                            except Exception as pdfe:
+                                logger.warning(f"Could not generate PDF attachment for notification: {pdfe}")
+
                         alert_payload = AlertPayload(
                             incident_id=inc_id,
                             camera_id=self.camera_id,
@@ -442,6 +476,7 @@ class FrameProcessor:
                             severity=sev,
                             incident_url=f"http://localhost:5173/incidents/{inc_id}",
                             snapshot_path=snap_path,
+                            pdf_path=pdf_attach_path,
                         )
                         get_dispatcher().dispatch_async(alert_payload)
                     except Exception as notif_err:

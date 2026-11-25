@@ -121,6 +121,8 @@ export const IncidentItemSchema = z.object({
   bbox: z.array(z.number()),
   involved_vehicle_ids: z.array(z.number()),
   snapshot_path: z.string().nullable().optional(),
+  snapshot_before_path: z.string().nullable().optional(),
+  snapshot_after_path: z.string().nullable().optional(),
   clip_path: z.string().nullable().optional(),
   verdict: z.enum(["true_accident", "false_alarm", "unsure"]).nullable().optional(),
   verdict_note: z.string().nullable().optional(),
@@ -128,6 +130,7 @@ export const IncidentItemSchema = z.object({
   settings: z.record(z.string(), z.any()).default({}),
   model_info: z.record(z.string(), z.any()).default({}),
   kinematics: z.record(z.string(), z.any()).nullable().optional(),
+  time_series: z.record(z.string(), z.any()).nullable().optional(),
   is_deleted: z.number().default(0),
 });
 

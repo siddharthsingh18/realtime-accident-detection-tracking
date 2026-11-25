@@ -168,12 +168,16 @@ class IncidentItem(BaseModel):
     bbox: List[float]
     involved_vehicle_ids: List[int]
     snapshot_path: Optional[str] = None
+    snapshot_before_path: Optional[str] = None
+    snapshot_after_path: Optional[str] = None
     clip_path: Optional[str] = None
     verdict: Optional[Literal["true_accident", "false_alarm", "unsure"]] = None
     verdict_note: Optional[str] = None
     verdict_at: Optional[str] = None
     settings: Dict[str, Any] = Field(default_factory=dict)
     model_info: Dict[str, Any] = Field(default_factory=dict)
+    kinematics: Optional[Dict[str, Any]] = None
+    time_series: Optional[Dict[str, Any]] = None
     is_deleted: int = 0
 
 

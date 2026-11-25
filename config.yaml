@@ -73,3 +73,10 @@ visualization:
   show_alert_banner: true                 # Displays prominent top emergency alert banner on confirmed accident
   show_hud_stats: true                    # Displays FPS and tracking statistics overlay
   line_thickness: 2                       # Bounding box stroke width
+
+# Incident Evidence Dossier & Export Settings
+dossier:
+  pre_roll_seconds: 5.0                   # Pre-roll window before confirmation (seconds)
+  post_roll_seconds: 5.0                  # Post-roll window after confirmation (seconds)
+  include_license_plates_and_faces: false # Privacy opt-in flag: crop/include plates or faces (default false)
+  attach_to_notifications: false          # Attach PDF evidence dossier to Telegram/Slack/Email alerts (default false)

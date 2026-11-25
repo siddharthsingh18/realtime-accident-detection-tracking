@@ -35,6 +35,8 @@ def init_db():
                 bbox_json TEXT NOT NULL,
                 involved_ids_json TEXT NOT NULL,
                 snapshot_path TEXT,
+                snapshot_before_path TEXT,
+                snapshot_after_path TEXT,
                 clip_path TEXT,
                 verdict TEXT,
                 verdict_note TEXT,
@@ -42,6 +44,7 @@ def init_db():
                 settings_json TEXT NOT NULL,
                 model_info_json TEXT NOT NULL,
                 kinematics_json TEXT,
+                time_series_json TEXT,
                 is_deleted INTEGER DEFAULT 0
             );
 
@@ -95,6 +98,21 @@ def init_db():
                 pass
 
             try:
+                cur.execute("ALTER TABLE incidents ADD COLUMN snapshot_before_path TEXT;")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE incidents ADD COLUMN snapshot_after_path TEXT;")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE incidents ADD COLUMN time_series_json TEXT;")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
                 cur.execute("ALTER TABLE cameras ADD COLUMN heading REAL;")
             except sqlite3.OperationalError:
                 pass
@@ -134,6 +152,9 @@ def insert_incident(
     settings: Dict[str, Any],
     model_info: Dict[str, Any],
     kinematics: Optional[Dict[str, Any]] = None,
+    snapshot_before_path: Optional[str] = None,
+    snapshot_after_path: Optional[str] = None,
+    time_series: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     conn = get_connection()
     try:
@@ -142,9 +163,10 @@ def insert_incident(
             INSERT OR REPLACE INTO incidents (
                 id, camera_id, session_id, zone_id, origin,
                 confirmed_at, peak_conf, bbox_json, involved_ids_json,
-                snapshot_path, clip_path, settings_json, model_info_json,
-                kinematics_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                snapshot_path, snapshot_before_path, snapshot_after_path,
+                clip_path, settings_json, model_info_json,
+                kinematics_json, time_series_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 incident_id,
                 camera_id,
@@ -156,12 +178,44 @@ def insert_incident(
                 json.dumps(bbox),
                 json.dumps(involved_ids),
                 snapshot_path,
+                snapshot_before_path,
+                snapshot_after_path,
                 clip_path,
                 json.dumps(settings),
                 json.dumps(model_info),
                 json.dumps(kinematics) if kinematics else None,
+                json.dumps(time_series) if time_series else None,
             ))
         return get_incident(incident_id) or {}
+    finally:
+        conn.close()
+
+
+def update_incident_evidence_files(
+    incident_id: str,
+    snapshot_before_path: Optional[str] = None,
+    snapshot_after_path: Optional[str] = None,
+    clip_path: Optional[str] = None,
+):
+    """Updates evidence file paths asynchronously once background generation completes."""
+    conn = get_connection()
+    try:
+        with conn:
+            cur = conn.cursor()
+            updates = []
+            params: List[Any] = []
+            if snapshot_before_path is not None:
+                updates.append("snapshot_before_path = ?")
+                params.append(snapshot_before_path)
+            if snapshot_after_path is not None:
+                updates.append("snapshot_after_path = ?")
+                params.append(snapshot_after_path)
+            if clip_path is not None:
+                updates.append("clip_path = ?")
+                params.append(clip_path)
+            if updates:
+                params.append(incident_id)
+                cur.execute(f"UPDATE incidents SET {', '.join(updates)} WHERE id = ?", params)
     finally:
         conn.close()
 
@@ -208,6 +262,13 @@ def update_incident_verdict(incident_id: str, verdict: Optional[str], note: Opti
             INSERT INTO verdict_audit (incident_id, old_verdict, new_verdict, note, changed_at)
             VALUES (?, ?, ?, ?, ?)
             """, (incident_id, old_verdict, verdict or "none", note or "", now))
+
+        # Invalidate cached dossier PDF so next fetch renders the updated verdict and notes
+        try:
+            from api.dossier import invalidate_dossier_cache
+            invalidate_dossier_cache(incident_id)
+        except Exception:
+            pass
 
         return get_incident(incident_id)
     finally:
@@ -504,6 +565,7 @@ def _format_incident_row(row: Dict[str, Any]) -> Dict[str, Any]:
     row["settings"] = json.loads(row.get("settings_json") or "{}")
     row["model_info"] = json.loads(row.get("model_info_json") or "{}")
     row["kinematics"] = json.loads(row.get("kinematics_json") or "null") if row.get("kinematics_json") else None
+    row["time_series"] = json.loads(row.get("time_series_json") or "null") if row.get("time_series_json") else None
     return row
 
 
