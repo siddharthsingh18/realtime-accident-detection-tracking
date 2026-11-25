@@ -9,6 +9,7 @@ const resources = {
       disclaimer: "Automated detections are unverified and not for emergency dispatch.",
       nav: {
         live_wall: "Live Wall",
+        map: "GIS Map",
         focus_view: "Focus View",
         review_queue: "Review Queue",
         analytics: "Analytics",
@@ -71,6 +72,7 @@ const resources = {
       disclaimer: "स्वचालित पहचान असत्यापित हैं और आपातकालीन प्रेषण के लिए नहीं हैं।",
       nav: {
         live_wall: "लाइव वॉल",
+        map: "जीआईएस मानचित्र",
         focus_view: "फोकस दृश्य",
         review_queue: "समीक्षा कतार",
         analytics: "विश्लेषण",

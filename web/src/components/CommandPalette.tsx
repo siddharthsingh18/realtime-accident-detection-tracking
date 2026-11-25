@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../store/useSessionStore";
 import { useShallow } from "zustand/react/shallow";
-import { Search, Monitor, AlertCircle, BarChart3, GitCompare, Camera, Settings, Eye, Volume2, VolumeX, Moon, Sun, Film, Sparkles, ClipboardCheck } from "lucide-react";
+import { Search, Monitor, AlertCircle, BarChart3, GitCompare, Camera, Settings, Eye, Volume2, VolumeX, Moon, Sun, Film, Sparkles, ClipboardCheck, MapPin } from "lucide-react";
 
 export const CommandPalette: React.FC = () => {
   const {
@@ -37,6 +37,7 @@ export const CommandPalette: React.FC = () => {
 
   const actions = [
     { id: "nav_wall", title: "Go to Live Wall", icon: <Monitor className="w-4 h-4 text-cyan-400" />, run: () => navigate("/") },
+    { id: "nav_map", title: "Go to GIS Situational Map", icon: <MapPin className="w-4 h-4 text-emerald-400" />, run: () => navigate("/map") },
     { id: "nav_analyze", title: "Go to Analyze Studio (I/O)", icon: <Film className="w-4 h-4 text-cyan-400" />, run: () => navigate("/analyze") },
     { id: "nav_review", title: "Go to Review Queue", icon: <AlertCircle className="w-4 h-4 text-rose-400" />, run: () => navigate("/incidents") },
     { id: "nav_analytics", title: "Go to Incident Analytics", icon: <BarChart3 className="w-4 h-4 text-amber-400" />, run: () => navigate("/analytics") },
