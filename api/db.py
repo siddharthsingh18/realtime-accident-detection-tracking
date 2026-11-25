@@ -67,8 +67,22 @@ def init_db():
                 created_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS notification_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                incident_id TEXT NOT NULL,
+                camera_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                status TEXT NOT NULL,
+                attempts INTEGER DEFAULT 1,
+                last_error TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_incidents_cam_time ON incidents(camera_id, confirmed_at);
             CREATE INDEX IF NOT EXISTS idx_incidents_verdict ON incidents(verdict);
+            CREATE INDEX IF NOT EXISTS idx_notif_incident ON notification_logs(incident_id);
+            CREATE INDEX IF NOT EXISTS idx_notif_cam_time ON notification_logs(camera_id, created_at);
             """)
 
             # Seed default cameras if table is empty
@@ -476,3 +490,71 @@ def _format_camera_row(row: Dict[str, Any]) -> Dict[str, Any]:
     row["settings_profile"] = json.loads(row.get("settings_profile_json") or "{}")
     row["ignore_region"] = json.loads(row.get("ignore_region_json") or "[]")
     return row
+
+
+def log_notification(
+    incident_id: str,
+    camera_id: str,
+    channel: str,
+    status: str,
+    attempts: int = 1,
+    last_error: Optional[str] = None,
+) -> int:
+    """Insert or update a notification delivery record in notification_logs."""
+    conn = get_connection()
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with conn:
+            cur = conn.cursor()
+            # Check if record exists for this incident and channel
+            cur.execute(
+                "SELECT id FROM notification_logs WHERE incident_id = ? AND channel = ?",
+                (incident_id, channel),
+            )
+            existing = cur.fetchone()
+            if existing:
+                log_id = existing["id"]
+                cur.execute("""
+                UPDATE notification_logs
+                SET status = ?, attempts = ?, last_error = ?, updated_at = ?
+                WHERE id = ?
+                """, (status, attempts, last_error, now, log_id))
+                return log_id
+            else:
+                cur.execute("""
+                INSERT INTO notification_logs (
+                    incident_id, camera_id, channel, status, attempts, last_error, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (incident_id, camera_id, channel, status, attempts, last_error, now, now))
+                return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_incident_notifications(incident_id: str) -> List[Dict[str, Any]]:
+    """Fetch all notification delivery logs for a specific incident."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT * FROM notification_logs WHERE incident_id = ? ORDER BY id ASC",
+            (incident_id,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def list_recent_notifications(limit: int = 50) -> List[Dict[str, Any]]:
+    """List most recent notification delivery logs across all channels."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT * FROM notification_logs ORDER BY id DESC LIMIT ?",
+            (limit,),
+        )
+        return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+

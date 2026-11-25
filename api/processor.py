@@ -359,6 +359,39 @@ class FrameProcessor:
                         post_roll_seconds=5.0,
                     )
 
+                    # Trigger asynchronous multi-channel notification alert
+                    try:
+                        from api.notifications.models import AlertPayload
+                        from api.notifications.dispatcher import get_dispatcher
+
+                        involved_vs = [v for v in tracked_vehicles if v.track_id in target_zone.involved_vehicle_ids]
+                        kmh_vals = [v.speed_kmh for v in involved_vs if getattr(v, "speed_kmh", None) is not None]
+                        px_vals = [getattr(v, "speed_px_s", 0.0) for v in involved_vs if getattr(v, "speed_px_s", 0.0) > 0]
+                        max_kmh = max(kmh_vals) if kmh_vals else None
+                        max_px = max(px_vals) if px_vals else None
+
+                        cam_info = db.get_camera(self.camera_id)
+                        cam_name = cam_info.get("name", self.camera_id) if cam_info else self.camera_id
+                        sev = "CRITICAL" if len(target_zone.involved_vehicle_ids) >= 2 or (max_kmh and max_kmh > 40.0) else "HIGH"
+
+                        alert_payload = AlertPayload(
+                            incident_id=inc_id,
+                            camera_id=self.camera_id,
+                            camera_name=cam_name,
+                            timestamp_iso=now_iso,
+                            zone_id=zid,
+                            confidence=float(target_zone.conf),
+                            vehicles_involved=list(target_zone.involved_vehicle_ids),
+                            speed_kmh=max_kmh,
+                            speed_px_s=max_px,
+                            severity=sev,
+                            incident_url=f"http://localhost:5173/incidents/{inc_id}",
+                            snapshot_path=snap_path,
+                        )
+                        get_dispatcher().dispatch_async(alert_payload)
+                    except Exception as notif_err:
+                        logger.error(f"Failed to enqueue incident notification for {inc_id}: {notif_err}")
+
             elif ev.type == "cleared":
                 zid = ev.zone_id
                 inc_id = self.active_incidents_by_zone.pop(zid, None)
