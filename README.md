@@ -169,8 +169,44 @@ The platform features an operator-grade **Incident Command Console** designed fo
 | ![Analytics](docs/screenshots/analytics_view.png) | ![Cameras](docs/screenshots/cameras_view.png) |
 | **GIS Situational Map (Dark Mode)** | **GIS Situational Map (Light Mode)** |
 | ![GIS Map Dark](docs/screenshots/map_view_dark.png) | ![GIS Map Light](docs/screenshots/map_view_light.png) |
-| **Live Incident Geo-Beacon Alert** | **Interactive Location & Heading Picker** |
-| ![GIS Incident Alert](docs/screenshots/map_view_incident_alert.png) | ![Camera Location Picker](docs/screenshots/map_view_dark.png) |
+| **Live Incident Geo-Beacon Alert** | **Incident Evidence Dossier (A4 PDF)** |
+| ![GIS Incident Alert](docs/screenshots/map_view_incident_alert.png) | ![Dossier Preview](docs/screenshots/dossier_sample_preview.png) |
+
+---
+
+## Incident Evidence Dossier & Structured Exports
+
+The system provides on-demand generation of comprehensive, legally compliant incident dossiers for municipal safety teams, insurance adjudicators, and traffic investigators:
+
+- **A4 Branded PDF Evidence Report** (`GET /api/incidents/{id}/dossier.pdf`):
+  - Formatted for print and archival with incident ID, camera metadata, GPS coordinates, and timestamp with UTC time zone.
+  - **Three-Phase Visual Evidence**: Side-by-side photographic snapshots capturing Phase 1 (Pre-impact at $T - 5\text{s}$), Phase 2 (Moment of confirmation at $T_0$), and Phase 3 (Post-impact at $T + 5\text{s}$).
+  - **Collision Dynamics Charts**: Dual vector Matplotlib graphs plotting vehicle speed-over-time and deceleration-over-time leading up to impact.
+  - **Physical Kinematics Matrix**: Time-to-Collision (TTC), closing speed, peak deceleration, and relative speed drop ($\Delta v$).
+  - **Operator Review Log**: Recorded verdict (`True Accident`, `False Alarm`, `Unsure`), investigator notes, and audit timestamps.
+  - **Location & Spatial Block**: Coordinate schematic card showing geographic coordinates and camera heading.
+  - **Cached On-Demand Generation**: Reports are generated asynchronously and cached on disk (`data/incidents/{id}_dossier.pdf`). The cache is automatically invalidated when an operator updates or amends the verdict.
+- **Structured JSON Dossier** (`GET /api/incidents/{id}/dossier.json`):
+  - Machine-readable export adhering to Schema v1.0.0 with ISO 8601 timestamps and metric units.
+- **OASIS CAP 1.2 XML Alert** (`GET /api/incidents/{id}/dossier.cap.xml`):
+  - Standardized Common Alerting Protocol (CAP v1.2) XML payload for interoperability testing.
+- **Unified Evidence Archive (.zip)** (`GET /api/incidents/{id}/bundle.zip`):
+  - Single-archive bundle packing the PDF dossier, JSON export, CAP XML, three JPEG snapshots, and the synchronized H.264 MP4 clip.
+
+### Privacy & Regulatory Compliance Notice
+
+> [!CAUTION]
+> **Privacy-by-Default Policy**: In accordance with municipal surveillance regulations and data privacy frameworks (e.g. GDPR, CCPA), facial features and vehicle license plates are **not** cropped, magnified, or featured by default in generated dossiers.
+>
+> An opt-in configuration toggle is provided in `config.yaml`:
+> ```yaml
+> dossier:
+>   include_license_plates_and_faces: false  # Default false (privacy preserved)
+>   pre_roll_seconds: 5.0                    # Configurable pre-impact buffer
+>   post_roll_seconds: 5.0                   # Configurable post-impact buffer
+>   attach_to_notifications: false           # Optional PDF email attachment
+> ```
+> Every generated report carries a mandatory disclaimer: *"Automatically generated detection evidence. Requires human verification."*
 
 ---
 
@@ -382,7 +418,7 @@ visualization:
 
 ## Running Tests & Quality Verification
 
-### Python Backend Test Suite (66 tests)
+### Python Backend Test Suite (75 tests)
 ```bash
 pytest tests/ -v
 ```
@@ -405,6 +441,9 @@ node web/scripts/run_benchmarks.js
 
 # GIS Situational Map benchmark and verification
 node web/scripts/verify_gis_map.js
+
+# Generate sample incident evidence dossier PDF and preview image
+python scripts/generate_sample_dossier.py
 ```
 
 ---
@@ -416,6 +455,8 @@ node web/scripts/verify_gis_map.js
 3. **Threshold Tuning**: Kinematic and state machine thresholds should be tuned on a validation set representative of the target camera angle, focal length, and typical road speed limit before deploying in production `require` mode.
 4. **Tile Provider Limits**: The default tile layer connects to public OSM-compatible endpoints with strict rate limits and fair-use guidelines. Enterprise deployments require a dedicated raster/vector tile server or licensed provider.
 5. **Coordinate Reference System**: Spatial coordinates use standard WGS-84 (`EPSG:4326`) latitude/longitude mapped to Web Mercator (`EPSG:3857`). Highly specialized local state plane projections require re-projection to standard lat/lng before ingestion.
+6. **Experimental Alerting Protocol**: The OASIS CAP 1.2 XML export format is experimental and has not been certified or validated against real municipal Computer-Aided Dispatch (CAD) or 911/112 public safety answering points.
+7. **Human Verification Requirement**: Dossiers compile automated computer-vision detections and physical kinematics, but legally require human operator review before official submission.
 
 ---
 
