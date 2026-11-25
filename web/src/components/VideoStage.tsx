@@ -2,12 +2,14 @@ import React, { useRef, useEffect } from "react";
 import { useSessionStore } from "../store/useSessionStore";
 import { AlertTriangle, PlayCircle, Eye, EyeOff } from "lucide-react";
 import { VideoHudOverlay } from "./ui/VideoHudOverlay";
+import { perfMonitor } from "../utils/perfMonitor";
 
 interface Props {
   latestFrame: Blob | null;
 }
 
 export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
+  perfMonitor.recordVideoStageRender();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { status, telemetry, showClientBboxOverlay, toggleBboxOverlay, error } =
@@ -47,6 +49,7 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
         if (!ctx) return;
 
         requestAnimationFrame(() => {
+          const t0 = performance.now();
           ctx.drawImage(bitmap, 0, 0);
 
           // Optional Client-side Bounding Box Overlay (defaults to off)
@@ -83,6 +86,7 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
               ctx.fillText(label, x1 + 6, Math.max(16, y1 - 8));
             });
           }
+          perfMonitor.recordFrameDrawn(performance.now() - t0);
         });
       })
       .catch((err) => {

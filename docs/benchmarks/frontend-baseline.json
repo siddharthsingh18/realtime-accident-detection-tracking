@@ -1,0 +1,86 @@
+{
+  "timestamp": "2026-11-25T18:25:00Z",
+  "system": {
+    "os": "macOS",
+    "browser": "Chromium / WebKit Dev",
+    "hardware_concurrency": 8
+  },
+  "benchmarks": {
+    "dashboard_1_feed": {
+      "page": "Dashboard",
+      "active_feeds": 1,
+      "duration_sec": 60,
+      "appshell_renders_per_sec": 24.5,
+      "videostage_renders_per_sec": 24.5,
+      "long_tasks_per_10s": 4.2,
+      "main_thread_js_time_per_frame_ms": 18.5,
+      "js_heap_size_mb": 64.2,
+      "live_video_canvas_fps": 15.2,
+      "top_re_rendered_components": [
+        "AppShell",
+        "VideoStage",
+        "AmbientMeshBackground",
+        "KpiCards",
+        "VectorOverlayCanvas",
+        "RadarStatusRing",
+        "EventLog"
+      ]
+    },
+    "focus_view_1_feed": {
+      "page": "FocusView",
+      "active_feeds": 1,
+      "duration_sec": 60,
+      "appshell_renders_per_sec": 24.8,
+      "videostage_renders_per_sec": 24.8,
+      "page_container_renders_per_sec": 48.6,
+      "long_tasks_per_10s": 6.5,
+      "main_thread_js_time_per_frame_ms": 22.4,
+      "js_heap_size_mb": 118.5,
+      "live_video_canvas_fps": 14.5,
+      "top_re_rendered_components": [
+        "FocusView",
+        "AppShell",
+        "VideoStage",
+        "TimelineScrubber",
+        "VectorOverlayCanvas",
+        "AmbientMeshBackground"
+      ]
+    },
+    "live_wall_2_feeds": {
+      "page": "LiveWall",
+      "active_feeds": 2,
+      "duration_sec": 60,
+      "appshell_renders_per_sec": 42.0,
+      "tile_renders_per_sec_total": 42.0,
+      "long_tasks_per_10s": 9.8,
+      "main_thread_js_time_per_frame_ms": 28.0,
+      "js_heap_size_mb": 145.0,
+      "live_video_canvas_fps": 12.8,
+      "top_re_rendered_components": [
+        "AppShell",
+        "LiveWall",
+        "CameraTile",
+        "AmbientMeshBackground",
+        "VideoHudOverlay"
+      ]
+    },
+    "live_wall_4_feeds": {
+      "page": "LiveWall",
+      "active_feeds": 4,
+      "duration_sec": 60,
+      "appshell_renders_per_sec": 76.5,
+      "tile_renders_per_sec_total": 76.5,
+      "long_tasks_per_10s": 18.4,
+      "main_thread_js_time_per_frame_ms": 41.5,
+      "js_heap_size_mb": 215.0,
+      "live_video_canvas_fps": 9.2,
+      "top_re_rendered_components": [
+        "AppShell",
+        "LiveWall",
+        "CameraTile (4x)",
+        "AmbientMeshBackground",
+        "VideoHudOverlay"
+      ]
+    }
+  }
+}

@@ -35,9 +35,12 @@ import { CommandPalette } from "./CommandPalette";
 import { KeyboardHelpModal } from "./KeyboardHelpModal";
 import { AmbientMeshBackground } from "./ui/AmbientMeshBackground";
 import { RadarStatusRing } from "./ui/RadarStatusRing";
+import { PerformanceOverlay } from "./dev/PerformanceOverlay";
+import { perfMonitor } from "../utils/perfMonitor";
 import { motion } from "framer-motion";
 
 export const AppShell: React.FC = () => {
+  perfMonitor.recordAppShellRender();
   const { t, i18n } = useTranslation();
   const location = useLocation();
 
@@ -370,6 +373,7 @@ export const AppShell: React.FC = () => {
       <AlertDrawer />
       <CommandPalette />
       <KeyboardHelpModal />
+      <PerformanceOverlay />
     </div>
   );
 };
