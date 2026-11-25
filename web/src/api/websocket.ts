@@ -4,6 +4,17 @@ export type TelemetryCallback = (telemetry: TelemetryMessage) => void;
 export type FrameCallback = (frameData: Blob) => void;
 export type StatusCallback = (status: "connecting" | "connected" | "disconnected" | "reconnecting" | "error", details?: string) => void;
 
+export function isValidStructuralTelemetry(data: any): boolean {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    typeof data.frame_idx === "number" &&
+    typeof data.fps === "number" &&
+    typeof data.timestamp_ms === "number" &&
+    typeof data.confirmed_accidents === "number"
+  );
+}
+
 export class StreamWebSocket {
   private ws: WebSocket | null = null;
   private url: string;
@@ -14,6 +25,7 @@ export class StreamWebSocket {
   private maxReconnectAttempts = 5;
   private reconnectTimer: NodeJS.Timeout | number | null = null;
   private isIntentionallyClosed = false;
+  private hasValidatedHandshake = false;
 
   constructor(
     sessionId: string,
@@ -52,10 +64,34 @@ export class StreamWebSocket {
               this.onStatus("disconnected", "Session finished");
               return;
             }
-            const validated = TelemetryMessageSchema.parse(parsed);
-            this.onTelemetry(validated);
+
+            // Always validate full Zod schema once at handshake
+            if (!this.hasValidatedHandshake) {
+              const validated = TelemetryMessageSchema.parse(parsed);
+              this.hasValidatedHandshake = true;
+              this.onTelemetry(validated);
+              return;
+            }
+
+            // In production, run cheap structural check for high throughput
+            const isProd = import.meta.env.PROD;
+            if (isProd) {
+              if (isValidStructuralTelemetry(parsed)) {
+                this.onTelemetry(parsed as TelemetryMessage);
+              } else {
+                console.warn("Dropped malformed telemetry message:", parsed);
+              }
+            } else {
+              // In dev and tests, validate full schema
+              try {
+                const validated = TelemetryMessageSchema.parse(parsed);
+                this.onTelemetry(validated);
+              } catch (zodErr) {
+                console.warn("Dropped malformed telemetry frame in dev/test:", zodErr);
+              }
+            }
           } catch (e) {
-            console.error("Failed to parse telemetry frame:", e);
+            console.warn("Failed to parse telemetry frame:", e);
           }
         } else if (event.data instanceof Blob) {
           this.onFrame(event.data);
