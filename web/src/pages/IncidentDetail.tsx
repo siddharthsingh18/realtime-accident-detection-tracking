@@ -23,6 +23,12 @@ import {
   CheckCircle2,
   ShieldAlert,
   Activity,
+  FileText,
+  FileJson,
+  FileCode,
+  Archive,
+  ChevronDown,
+  Loader2,
 } from "lucide-react";
 
 export const IncidentDetail: React.FC = () => {
@@ -45,6 +51,66 @@ export const IncidentDetail: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [loopWindow, setLoopWindow] = useState(true);
+
+  // Evidence Dossier Export & Snapshot Phase Controls
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [activeSnapshotPhase, setActiveSnapshotPhase] = useState<"before" | "impact" | "after">("impact");
+
+  const handleExport = async (format: "pdf" | "json" | "cap" | "bundle") => {
+    if (!incident) return;
+    setExportingFormat(format);
+    setExportError(null);
+    const baseUrl = import.meta.env.VITE_API_URL || "";
+    let url = "";
+    let filename = "";
+
+    if (format === "pdf") {
+      url = `${baseUrl}/api/incidents/${incident.id}/dossier.pdf`;
+      filename = `${incident.id}_dossier.pdf`;
+    } else if (format === "json") {
+      url = `${baseUrl}/api/incidents/${incident.id}/dossier.json`;
+      filename = `${incident.id}_dossier.json`;
+    } else if (format === "cap") {
+      url = `${baseUrl}/api/incidents/${incident.id}/dossier.cap.xml`;
+      filename = `${incident.id}_dossier.cap.xml`;
+    } else if (format === "bundle") {
+      url = `${baseUrl}/api/incidents/${incident.id}/bundle.zip`;
+      filename = `${incident.id}_bundle.zip`;
+    }
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Export failed (${res.status} ${res.statusText})`);
+      }
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      setExportMenuOpen(false);
+      addToast({
+        type: "info",
+        title: "Export Ready",
+        message: `Downloaded ${filename}`,
+      });
+    } catch (err: any) {
+      console.error("Export error:", err);
+      setExportError(err.message || "Failed to download dossier");
+      addToast({
+        type: "cleared",
+        title: "Export Failed",
+        message: err.message || "Could not generate dossier.",
+      });
+    } finally {
+      setExportingFormat(null);
+    }
+  };
 
   useEffect(() => {
     if (videoRef.current) {
@@ -119,7 +185,6 @@ export const IncidentDetail: React.FC = () => {
 
   const clipUrl = `${import.meta.env.VITE_API_URL || ""}/api/incidents/${incident.id}/clip`;
   const snapUrl = `${import.meta.env.VITE_API_URL || ""}/api/incidents/${incident.id}/snapshot`;
-  const zipUrl = `${import.meta.env.VITE_API_URL || ""}/api/incidents/${incident.id}/evidence.zip`;
 
   return (
     <div className="space-y-6">
@@ -148,7 +213,7 @@ export const IncidentDetail: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
           <button
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
@@ -160,14 +225,78 @@ export const IncidentDetail: React.FC = () => {
             <span>Copy Link</span>
           </button>
 
-          <a
-            href={zipUrl}
-            download
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download Evidence ZIP</span>
-          </a>
+          {/* Export Dossier Dropdown Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setExportMenuOpen(!exportMenuOpen)}
+              disabled={!!exportingFormat}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-md transition disabled:opacity-50"
+            >
+              {exportingFormat ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              <span>Export Dossier</span>
+              <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+            </button>
+
+            {exportMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl py-1.5 z-50 text-xs animate-in fade-in slide-in-from-top-2">
+                <button
+                  onClick={() => handleExport("pdf")}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 transition"
+                >
+                  <FileText className="w-4 h-4 text-rose-400" />
+                  <div>
+                    <div className="font-semibold">PDF Evidence Report</div>
+                    <div className="text-[10px] text-slate-400">Branded A4 report with charts</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleExport("json")}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 transition"
+                >
+                  <FileJson className="w-4 h-4 text-cyan-400" />
+                  <div>
+                    <div className="font-semibold">Structured JSON</div>
+                    <div className="text-[10px] text-slate-400">Schema v1.0.0 with units</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleExport("cap")}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 transition"
+                >
+                  <FileCode className="w-4 h-4 text-amber-400" />
+                  <div>
+                    <div className="font-semibold">OASIS CAP 1.2 XML</div>
+                    <div className="text-[10px] text-slate-400">Common Alerting Protocol (Exp.)</div>
+                  </div>
+                </button>
+
+                <div className="border-t border-slate-800 my-1" />
+
+                <button
+                  onClick={() => handleExport("bundle")}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2.5 text-slate-200 hover:bg-slate-800 transition"
+                >
+                  <Archive className="w-4 h-4 text-emerald-400" />
+                  <div>
+                    <div className="font-semibold">Full Bundle (.zip)</div>
+                    <div className="text-[10px] text-slate-400">PDF, JSON, CAP, clip & snaps</div>
+                  </div>
+                </button>
+              </div>
+            )}
+
+            {exportError && (
+              <div className="absolute right-0 top-full mt-2 w-64 p-2.5 bg-rose-950/90 border border-rose-800 rounded-xl text-[11px] text-rose-300 shadow-xl z-50">
+                {exportError}
+              </div>
+            )}
+          </div>
         </div>
       </GlassCard>
 
@@ -256,13 +385,63 @@ export const IncidentDetail: React.FC = () => {
             </div>
           </GlassCard>
 
-          {/* Snapshot Preview */}
-          <GlassCard className="p-4 space-y-2" glowColor="cyan">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              High-Resolution Crash Moment Snapshot
-            </h4>
-            <div className="aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
-              <img src={snapUrl} alt="Crash Snapshot" className="w-full h-full object-contain" />
+          {/* Three-Phase Snapshot Evidence */}
+          <GlassCard className="p-4 space-y-3" glowColor="cyan">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Three-Phase Evidence Snapshots
+              </h4>
+              <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-[11px] font-mono">
+                <button
+                  onClick={() => setActiveSnapshotPhase("before")}
+                  className={`px-2.5 py-1 rounded-lg transition ${
+                    activeSnapshotPhase === "before"
+                      ? "bg-cyan-600 text-white font-bold"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  1. Before (-5s)
+                </button>
+                <button
+                  onClick={() => setActiveSnapshotPhase("impact")}
+                  className={`px-2.5 py-1 rounded-lg transition ${
+                    activeSnapshotPhase === "impact"
+                      ? "bg-rose-600 text-white font-bold"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  2. Impact (T₀)
+                </button>
+                <button
+                  onClick={() => setActiveSnapshotPhase("after")}
+                  className={`px-2.5 py-1 rounded-lg transition ${
+                    activeSnapshotPhase === "after"
+                      ? "bg-amber-600 text-white font-bold"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  3. After (+5s)
+                </button>
+              </div>
+            </div>
+
+            <div className="relative aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
+              <img
+                key={activeSnapshotPhase}
+                src={`${snapUrl}?phase=${activeSnapshotPhase}`}
+                alt={`Crash Snapshot - ${activeSnapshotPhase}`}
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  // Fall back to primary impact snapshot if phase specific file not yet written
+                  const target = e.currentTarget;
+                  if (activeSnapshotPhase !== "impact") {
+                    target.src = snapUrl;
+                  }
+                }}
+              />
+              <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-black/75 backdrop-blur-md text-[10px] font-mono text-cyan-300 border border-slate-700">
+                Phase: <span className="uppercase font-bold text-white">{activeSnapshotPhase}</span>
+              </div>
             </div>
           </GlassCard>
         </div>
