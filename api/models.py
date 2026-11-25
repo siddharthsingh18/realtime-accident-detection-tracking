@@ -25,6 +25,8 @@ class PipelineSettings(BaseModel):
     use_collision_heuristic: bool = Field(True, description="Enable kinematic collision detection heuristic")
     device: Literal["auto", "cpu", "mps", "cuda"] = Field("auto", description="Compute device")
     inference_backend: Literal["pytorch", "onnx"] = Field("pytorch", description="Inference runtime backend: pytorch or onnx")
+    deceleration_threshold_kmh: float = Field(35.0, ge=5.0, le=150.0, description="Deceleration drop threshold in km/h for calibrated cameras")
+    deceleration_threshold_px: float = Field(120.0, ge=10.0, le=500.0, description="Deceleration drop threshold in px/s for uncalibrated cameras")
     save_output: bool = Field(False, description="Persist video output to disk")
 
 
@@ -59,6 +61,7 @@ class TrackTelemetry(BaseModel):
     conf: float
     bbox: Tuple[float, float, float, float]
     speed_px_s: float = 0.0
+    speed_kmh: Optional[float] = None
     suppressed: bool = False
     trail: List[Tuple[float, float]] = Field(default_factory=list)
 
@@ -165,6 +168,18 @@ class IncidentListResponse(BaseModel):
 
 
 # --- Camera Models ---
+class CameraCalibrationData(BaseModel):
+    camera_id: str
+    image_points: List[List[float]]
+    ground_points: List[List[float]]
+    matrix: List[List[float]]
+
+
+class CameraCalibrationRequest(BaseModel):
+    image_points: List[List[float]]
+    ground_points: List[List[float]]
+
+
 class CameraItem(BaseModel):
     id: str
     name: str

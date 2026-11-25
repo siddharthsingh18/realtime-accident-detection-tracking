@@ -20,6 +20,7 @@ from .accident_logic import (
     seconds_to_frames,
 )
 from .visualizer import Visualizer
+from .calibration import HomographyCalibrator, load_camera_calibration
 
 __all__ = [
     "DualDetector",
@@ -35,4 +36,6 @@ __all__ = [
     "resolve_fps",
     "seconds_to_frames",
     "Visualizer",
+    "HomographyCalibrator",
+    "load_camera_calibration",
 ]

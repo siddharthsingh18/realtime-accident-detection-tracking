@@ -10,6 +10,7 @@ logger = logging.getLogger("TrafficMonitor.Tracker")
 class TrackedVehicle:
     """
     Data structure representing a vehicle tracked across frames.
+    Maintains centroid history (pixels) and ground position history (meters) when calibrated.
     """
     def __init__(
         self,
@@ -28,6 +29,10 @@ class TrackedVehicle:
         self.is_suppressed = False
         self.accident_id: Optional[int] = None
         self.history: deque = deque(maxlen=max_history)
+        self.ground_history: deque = deque(maxlen=max_history)
+        self.speed_history_kmh: deque = deque(maxlen=5)
+        self.speed_px_s: float = 0.0
+        self.speed_kmh: Optional[float] = None
         self.update_centroid(bbox)
 
     @property
@@ -35,9 +40,18 @@ class TrackedVehicle:
         x1, y1, x2, y2 = self.bbox
         return [(x1 + x2) / 2.0, (y1 + y2) / 2.0]
 
+    @property
+    def bottom_center(self) -> List[float]:
+        """Bottom-center point of bounding box on the road surface."""
+        x1, y1, x2, y2 = self.bbox
+        return [(x1 + x2) / 2.0, y2]
+
     def update_centroid(self, bbox: List[float]):
         self.bbox = bbox
         self.history.append(self.centroid)
+
+    def update_ground_position(self, gx: float, gy: float):
+        self.ground_history.append((gx, gy))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -49,6 +63,9 @@ class TrackedVehicle:
             "is_suppressed": self.is_suppressed,
             "accident_id": self.accident_id,
             "centroid": self.centroid,
+            "bottom_center": self.bottom_center,
+            "speed_px_s": self.speed_px_s,
+            "speed_kmh": self.speed_kmh,
         }
 
 
@@ -56,6 +73,7 @@ class VehicleTracker:
     """
     Tracks vehicles using BoT-SORT algorithm integrated with YOLO11n.
     Maintains persistent IDs and track histories across video frames.
+    Computes speed in pixels/s and, when a HomographyCalibrator is provided, in km/h.
     """
 
     def __init__(
@@ -67,6 +85,8 @@ class VehicleTracker:
         classes: Optional[List[int]] = None,
         device: str = "cpu",
         max_history: int = 30,
+        calibrator: Optional[Any] = None,
+        fps: float = 30.0,
     ):
         self.model = vehicle_model
         self.tracker_type = tracker_type
@@ -75,15 +95,21 @@ class VehicleTracker:
         self.classes = classes
         self.device = device
         self.max_history = max_history
+        self.calibrator = calibrator
+        self.fps = fps
 
         # Active tracks dictionary: track_id -> TrackedVehicle
         self.active_tracks: Dict[int, TrackedVehicle] = {}
 
-    def update(self, frame: np.ndarray) -> List[TrackedVehicle]:
+    def update(self, frame: np.ndarray, fps: Optional[float] = None) -> List[TrackedVehicle]:
         """
         Runs BoT-SORT tracking on the current frame.
+        Computes vehicle speed in pixels/sec and km/h (if calibrated).
         Returns a list of currently active TrackedVehicle objects.
         """
+        effective_fps = fps if fps is not None and fps > 0 else self.fps
+        dt = 1.0 / effective_fps if effective_fps > 0 else (1.0 / 30.0)
+
         results = self.model.track(
             source=frame,
             persist=True,
@@ -133,14 +159,40 @@ class VehicleTracker:
                 )
                 self.active_tracks[track_id] = vehicle
 
+            # 1. Pixel-based speed calculation (fallback / uncalibrated)
+            if len(vehicle.history) >= 2:
+                pts = list(vehicle.history)
+                dx = pts[-1][0] - pts[-2][0]
+                dy = pts[-1][1] - pts[-2][1]
+                vehicle.speed_px_s = float(np.hypot(dx, dy) * effective_fps)
+            else:
+                vehicle.speed_px_s = 0.0
+
+            # 2. Metric speed in km/h if camera is calibrated
+            if self.calibrator is not None:
+                try:
+                    gx, gy = self.calibrator.transform_bottom_center(xyxy)
+                    vehicle.update_ground_position(gx, gy)
+                    if len(vehicle.ground_history) >= 2:
+                        g_pts = list(vehicle.ground_history)
+                        raw_speed_kmh = self.calibrator.compute_speed_kmh(g_pts[-2], g_pts[-1], dt)
+                        vehicle.speed_history_kmh.append(raw_speed_kmh)
+                        # Smooth speed using median of recent frames to reduce detector jitter
+                        vehicle.speed_kmh = float(np.median(vehicle.speed_history_kmh))
+                    else:
+                        vehicle.speed_kmh = 0.0
+                except Exception as e:
+                    logger.debug(f"Failed to compute ground coordinates for track #{track_id}: {e}")
+                    vehicle.speed_kmh = None
+            else:
+                vehicle.speed_kmh = None
+
             current_frame_tracks.append(vehicle)
 
         # Cleanup tracks that haven't been seen for a long time (retain active set)
         current_ids = set(track_ids)
         stale_ids = [tid for tid in self.active_tracks if tid not in current_ids]
-        # Keep stale tracks around briefly if needed, or prune
         for tid in stale_ids:
-            # We can remove stale tracks after not appearing
             del self.active_tracks[tid]
 
         return current_frame_tracks

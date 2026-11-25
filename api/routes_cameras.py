@@ -1,7 +1,14 @@
+import os
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from api import db
-from api.models import CameraItem, CameraUpdateRequest
+from api.models import (
+    CameraItem,
+    CameraUpdateRequest,
+    CameraCalibrationData,
+    CameraCalibrationRequest,
+)
+from src.calibration import load_camera_calibration, HomographyCalibrator
 
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
 
@@ -41,4 +48,38 @@ def delete_camera(camera_id: str):
     if not success:
         raise HTTPException(status_code=404, detail=f"Camera '{camera_id}' not found.")
     return {"status": "ok", "message": f"Camera '{camera_id}' removed."}
+
+
+@router.get("/{camera_id}/calibration", response_model=CameraCalibrationData)
+def get_camera_calibration(camera_id: str):
+    calibrator = load_camera_calibration(camera_id)
+    if not calibrator:
+        raise HTTPException(status_code=404, detail=f"No calibration found for camera '{camera_id}'.")
+    return CameraCalibrationData(**calibrator.to_dict())
+
+
+@router.put("/{camera_id}/calibration", response_model=CameraCalibrationData)
+def set_camera_calibration(camera_id: str, body: CameraCalibrationRequest):
+    try:
+        calibrator = HomographyCalibrator(
+            camera_id=camera_id,
+            image_points=body.image_points,
+            ground_points=body.ground_points,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid calibration parameters: {e}")
+
+    calib_file = os.path.join("calibration", f"{camera_id}.json")
+    calibrator.save(calib_file)
+    return CameraCalibrationData(**calibrator.to_dict())
+
+
+@router.delete("/{camera_id}/calibration")
+def delete_camera_calibration(camera_id: str):
+    calib_file = os.path.join("calibration", f"{camera_id}.json")
+    if os.path.exists(calib_file):
+        os.remove(calib_file)
+        return {"status": "ok", "message": f"Calibration for camera '{camera_id}' deleted."}
+    raise HTTPException(status_code=404, detail=f"No calibration found for camera '{camera_id}'.")
+
 

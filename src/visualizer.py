@@ -112,6 +112,10 @@ class Visualizer:
             if self.show_tracking_ids:
                 label_parts.append(f"#{v.track_id}")
             label_parts.append(v.class_name)
+            if getattr(v, "speed_kmh", None) is not None:
+                label_parts.append(f"{v.speed_kmh:.0f}km/h")
+            elif getattr(v, "speed_px_s", 0) > 0:
+                label_parts.append(f"{v.speed_px_s:.0f}px/s")
             if self.show_confidence:
                 label_parts.append(f"{v.conf:.2f}")
 

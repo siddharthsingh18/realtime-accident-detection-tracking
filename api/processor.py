@@ -16,6 +16,7 @@ from src import (
     suppress_vehicles_in_accidents,
     seconds_to_frames,
     Visualizer,
+    load_camera_calibration,
 )
 from api.models import (
     PipelineSettings,
@@ -83,6 +84,11 @@ class FrameProcessor:
         self.tentative_grace = seconds_to_frames(self.settings.tentative_grace_seconds, self.fps)
         self.confirm_window = max(self.confirm_hits + 3, 8)
 
+        # Camera homography calibration (if available)
+        self.calibrator = load_camera_calibration(self.camera_id)
+        if self.calibrator:
+            logger.info(f"Loaded road-plane calibration matrix for camera '{self.camera_id}'.")
+
         # Detectors and tracker
         self.detector = get_shared_detector(self.settings.device, self.settings.inference_backend)
         self.detector.accident_conf = self.settings.accident_conf
@@ -100,6 +106,8 @@ class FrameProcessor:
             iou=0.50,
             device=self.detector.device,
             max_history=30,
+            calibrator=self.calibrator,
+            fps=self.fps,
         )
 
         self.persistence_mgr = AccidentPersistenceManager(
@@ -111,7 +119,12 @@ class FrameProcessor:
             tentative_grace=self.tentative_grace,
         )
 
-        self.collision_detector = VehicleCollisionDetector(fps=self.fps)
+        self.collision_detector = VehicleCollisionDetector(
+            fps=self.fps,
+            calibrator=self.calibrator,
+            deceleration_threshold=self.settings.deceleration_threshold_px,
+            deceleration_threshold_kmh=self.settings.deceleration_threshold_kmh,
+        )
 
         self.visualizer = Visualizer(
             show_tracking_ids=True,
@@ -149,6 +162,8 @@ class FrameProcessor:
         self.persistence_mgr.confirm_window = self.confirm_window
         self.persistence_mgr.tentative_grace = self.tentative_grace
         self.persistence_mgr.iou_match_threshold = new_settings.iou_threshold
+        self.collision_detector.deceleration_threshold = new_settings.deceleration_threshold_px
+        self.collision_detector.deceleration_threshold_kmh = new_settings.deceleration_threshold_kmh
 
     def is_in_ignore_region(self, bbox: List[float]) -> bool:
         if not self.ignore_region or len(self.ignore_region) < 3:
@@ -177,7 +192,7 @@ class FrameProcessor:
         # Guarded by _inference_lock to ensure thread-safe forward passes on CPU across concurrent streams
         with _inference_lock:
             t_v0 = time.time()
-            tracked_vehicles = self.tracker.update(frame)
+            tracked_vehicles = self.tracker.update(frame, fps=effective_fps)
             for v in tracked_vehicles:
                 self.unique_vehicle_ids.add(v.track_id)
             t_vehicle = (time.time() - t_v0) * 1000
@@ -350,19 +365,18 @@ class FrameProcessor:
             if hasattr(v, "history") and v.history:
                 trail_pts = [(float(pt[0]), float(pt[1])) for pt in v.history][-30:]
 
-            # Speed in pixels/sec
-            speed_val = 0.0
-            if hasattr(v, "speed") and v.speed is not None:
-                speed_val = float(v.speed)
+            speed_px = float(getattr(v, "speed_px_s", 0.0))
+            speed_kmh = round(float(v.speed_kmh), 1) if getattr(v, "speed_kmh", None) is not None else None
 
             tracks_telemetry.append(
                 TrackTelemetry(
                     track_id=v.track_id,
-                    cls=getattr(v, "cls_name", "vehicle"),
+                    cls=getattr(v, "class_name", "vehicle"),
                     conf=float(v.conf),
                     bbox=(float(v.bbox[0]), float(v.bbox[1]), float(v.bbox[2]), float(v.bbox[3])),
-                    speed_px_s=speed_val,
-                    suppressed=bool(getattr(v, "suppressed", False)),
+                    speed_px_s=speed_px,
+                    speed_kmh=speed_kmh,
+                    suppressed=bool(getattr(v, "is_suppressed", False)),
                     trail=trail_pts,
                 )
             )

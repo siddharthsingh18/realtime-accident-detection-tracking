@@ -11,7 +11,9 @@ DEFAULT_MIN_OVERLAP_FRAMES: int = 3           # (Untuned) Minimum consecutive fr
 DEFAULT_IOU_COLLISION_THRESHOLD: float = 0.25 # (Untuned) Bounding box IoU cutoff for collision overlap
 DEFAULT_CONTAINMENT_COLLISION_THRESHOLD: float = 0.40 # (Untuned) Containment ratio cutoff
 DEFAULT_DECELERATION_THRESHOLD: float = 120.0 # (Untuned) Speed drop in px/sec over window to flag sudden deceleration
+DEFAULT_DECELERATION_KMH_THRESHOLD: float = 35.0 # Deceleration drop in km/h for calibrated cameras
 DEFAULT_MIN_RELATIVE_SPEED: float = 80.0      # (Untuned) Relative speed in px/sec for converging impact
+DEFAULT_MIN_RELATIVE_SPEED_KMH: float = 25.0  # Relative speed in km/h for converging impact
 DEFAULT_PARALLEL_HEADING_COS: float = 0.90    # (Untuned) Cosine threshold (~25 deg) for parallel motion
 DEFAULT_PARALLEL_SPEED_DIFF_RATIO: float = 0.30 # (Untuned) Speed difference ratio for queue / lane merge filter
 
@@ -349,19 +351,25 @@ class VehicleCollisionDetector:
         iou_collision_threshold: float = DEFAULT_IOU_COLLISION_THRESHOLD,
         containment_collision_threshold: float = DEFAULT_CONTAINMENT_COLLISION_THRESHOLD,
         deceleration_threshold: float = DEFAULT_DECELERATION_THRESHOLD,
+        deceleration_threshold_kmh: float = DEFAULT_DECELERATION_KMH_THRESHOLD,
         min_relative_speed: float = DEFAULT_MIN_RELATIVE_SPEED,
+        min_relative_speed_kmh: float = DEFAULT_MIN_RELATIVE_SPEED_KMH,
         parallel_heading_cos: float = DEFAULT_PARALLEL_HEADING_COS,
         parallel_speed_diff_ratio: float = DEFAULT_PARALLEL_SPEED_DIFF_RATIO,
         fps: float = 30.0,
+        calibrator: Optional[Any] = None,
     ):
         self.min_overlap_frames = min_overlap_frames
         self.iou_collision_threshold = iou_collision_threshold
         self.containment_collision_threshold = containment_collision_threshold
         self.deceleration_threshold = deceleration_threshold
+        self.deceleration_threshold_kmh = deceleration_threshold_kmh
         self.min_relative_speed = min_relative_speed
+        self.min_relative_speed_kmh = min_relative_speed_kmh
         self.parallel_heading_cos = parallel_heading_cos
         self.parallel_speed_diff_ratio = parallel_speed_diff_ratio
         self.fps = fps
+        self.calibrator = calibrator
 
         # Track consecutive overlapping frames: pair_key (id1, id2) -> int
         self.overlap_counts: Dict[Tuple[int, int], int] = {}
@@ -372,8 +380,34 @@ class VehicleCollisionDetector:
 
     def _compute_kinematics(self, vehicle: Any, fps: float) -> Tuple[float, float, Tuple[float, float], float]:
         """
-        Computes (current_speed, prev_speed, unit_heading, speed_drop) in px/s from centroid history.
+        Computes (current_speed, prev_speed, unit_heading, speed_drop).
+        If the vehicle has calibrated metric speed (km/h), speeds and drops are in km/h.
+        Otherwise falls back to pixel/sec values from centroid history.
         """
+        # Metric road-plane calculation if calibrated
+        if self.calibrator is not None and getattr(vehicle, "speed_kmh", None) is not None:
+            speed_curr = float(vehicle.speed_kmh)
+            shist = getattr(vehicle, "speed_history_kmh", None)
+            if shist and len(shist) >= 2:
+                speed_prev = float(list(shist)[-2])
+            else:
+                speed_prev = speed_curr
+            speed_drop = max(0.0, speed_prev - speed_curr)
+
+            # Ground-plane heading from ground history if available
+            ghistory = getattr(vehicle, "ground_history", None)
+            if ghistory and len(ghistory) >= 2:
+                g_pts = list(ghistory)
+                dgx = g_pts[-1][0] - g_pts[-2][0]
+                dgy = g_pts[-1][1] - g_pts[-2][1]
+                g_dist = math.hypot(dgx, dgy)
+                unit_heading = (dgx / g_dist, dgy / g_dist) if g_dist > 1e-4 else (0.0, 0.0)
+            else:
+                unit_heading = (0.0, 0.0)
+
+            return speed_curr, speed_prev, unit_heading, speed_drop
+
+        # Uncalibrated fallback: centroid history in pixels/s
         history = getattr(vehicle, "history", None)
         if not history or len(history) < 2:
             return 0.0, 0.0, (0.0, 0.0), 0.0
@@ -471,16 +505,33 @@ class VehicleCollisionDetector:
                 is_similar_speed = speed_diff_ratio <= self.parallel_speed_diff_ratio
 
                 # Condition (b): Kinematic cues
-                has_deceleration = (drop1 >= self.deceleration_threshold or drop2 >= self.deceleration_threshold)
+                is_calibrated = (
+                    self.calibrator is not None
+                    and getattr(v1, "speed_kmh", None) is not None
+                    and getattr(v2, "speed_kmh", None) is not None
+                )
+
+                if is_calibrated:
+                    has_deceleration = (
+                        drop1 >= self.deceleration_threshold_kmh
+                        or drop2 >= self.deceleration_threshold_kmh
+                    )
+                    min_rel = self.min_relative_speed_kmh
+                else:
+                    has_deceleration = (
+                        drop1 >= self.deceleration_threshold
+                        or drop2 >= self.deceleration_threshold
+                    )
+                    min_rel = self.min_relative_speed
 
                 # Distance vector and closing rate
                 r_vec = (p2[0] - p1[0], p2[1] - p1[1])
                 dist = math.hypot(r_vec[0], r_vec[1])
                 # Approaching if displacement dot relative velocity < 0
                 is_converging = False
-                if dist > 1e-3 and rel_speed >= self.min_relative_speed:
+                if dist > 1e-3 and rel_speed >= min_rel:
                     closing_rate = (r_vec[0] * (v2_vec[0] - v1_vec[0]) + r_vec[1] * (v2_vec[1] - v1_vec[1])) / dist
-                    if closing_rate < -self.min_relative_speed * 0.5 or cos_heading < 0.0:
+                    if closing_rate < -min_rel * 0.5 or cos_heading < 0.0:
                         is_converging = True
 
                 # Parallel queue filter: if parallel with similar speed and NO sharp deceleration -> exclude
@@ -526,11 +577,14 @@ def detect_vehicle_collisions(
     containment_collision_threshold: float = DEFAULT_CONTAINMENT_COLLISION_THRESHOLD,
     min_overlap_frames: int = DEFAULT_MIN_OVERLAP_FRAMES,
     deceleration_threshold: float = DEFAULT_DECELERATION_THRESHOLD,
+    deceleration_threshold_kmh: float = DEFAULT_DECELERATION_KMH_THRESHOLD,
     min_relative_speed: float = DEFAULT_MIN_RELATIVE_SPEED,
+    min_relative_speed_kmh: float = DEFAULT_MIN_RELATIVE_SPEED_KMH,
     parallel_heading_cos: float = DEFAULT_PARALLEL_HEADING_COS,
     parallel_speed_diff_ratio: float = DEFAULT_PARALLEL_SPEED_DIFF_RATIO,
     fps: float = 30.0,
     detector: Optional[VehicleCollisionDetector] = None,
+    calibrator: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """
     Detects potential vehicle-vehicle collision events directly from multi-object tracking.
@@ -541,7 +595,10 @@ def detect_vehicle_collisions(
     inst.containment_collision_threshold = containment_collision_threshold
     inst.min_overlap_frames = min_overlap_frames
     inst.deceleration_threshold = deceleration_threshold
+    inst.deceleration_threshold_kmh = deceleration_threshold_kmh
     inst.min_relative_speed = min_relative_speed
+    inst.min_relative_speed_kmh = min_relative_speed_kmh
     inst.parallel_heading_cos = parallel_heading_cos
     inst.parallel_speed_diff_ratio = parallel_speed_diff_ratio
+    inst.calibrator = calibrator
     return inst.detect(tracked_vehicles, fps=fps)
