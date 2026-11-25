@@ -35,6 +35,7 @@ def update_camera(camera_id: str, body: CameraUpdateRequest):
         source=body.source,
         lat=body.lat,
         lng=body.lng,
+        heading=body.heading,
         notes=body.notes,
         settings_profile=body.settings_profile,
         ignore_region=body.ignore_region,

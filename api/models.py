@@ -208,6 +208,7 @@ class CameraItem(BaseModel):
     source: str
     lat: Optional[float] = None
     lng: Optional[float] = None
+    heading: Optional[float] = None
     notes: Optional[str] = None
     settings_profile: Dict[str, Any] = Field(default_factory=dict)
     ignore_region: List[List[float]] = Field(default_factory=list)
@@ -219,6 +220,7 @@ class CameraUpdateRequest(BaseModel):
     source: str
     lat: Optional[float] = None
     lng: Optional[float] = None
+    heading: Optional[float] = None
     notes: Optional[str] = None
     settings_profile: Optional[Dict[str, Any]] = None
     ignore_region: Optional[List[List[float]]] = None

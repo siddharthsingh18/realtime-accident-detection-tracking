@@ -61,6 +61,7 @@ def init_db():
                 source TEXT NOT NULL,
                 lat REAL,
                 lng REAL,
+                heading REAL,
                 notes TEXT,
                 settings_profile_json TEXT,
                 ignore_region_json TEXT,
@@ -90,6 +91,11 @@ def init_db():
             cur = conn.cursor()
             try:
                 cur.execute("ALTER TABLE incidents ADD COLUMN kinematics_json TEXT;")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE cameras ADD COLUMN heading REAL;")
             except sqlite3.OperationalError:
                 pass
 
@@ -437,6 +443,7 @@ def upsert_camera(
     source: str,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
+    heading: Optional[float] = None,
     notes: Optional[str] = None,
     settings_profile: Optional[Dict[str, Any]] = None,
     ignore_region: Optional[List[List[float]]] = None,
@@ -446,13 +453,14 @@ def upsert_camera(
         now = datetime.now(timezone.utc).isoformat()
         with conn:
             conn.execute("""
-            INSERT INTO cameras (id, name, source, lat, lng, notes, settings_profile_json, ignore_region_json, created_at, is_deleted)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            INSERT INTO cameras (id, name, source, lat, lng, heading, notes, settings_profile_json, ignore_region_json, created_at, is_deleted)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 source = excluded.source,
                 lat = excluded.lat,
                 lng = excluded.lng,
+                heading = excluded.heading,
                 notes = excluded.notes,
                 settings_profile_json = excluded.settings_profile_json,
                 ignore_region_json = excluded.ignore_region_json,
@@ -463,6 +471,7 @@ def upsert_camera(
                 source,
                 lat,
                 lng,
+                heading,
                 notes or "",
                 json.dumps(settings_profile or {}),
                 json.dumps(ignore_region or []),

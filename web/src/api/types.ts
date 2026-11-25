@@ -149,6 +149,7 @@ export const CameraItemSchema = z.object({
   source: z.string(),
   lat: z.number().nullable().optional(),
   lng: z.number().nullable().optional(),
+  heading: z.number().nullable().optional(),
   notes: z.string().nullable().optional(),
   settings_profile: z.record(z.string(), z.any()).default({}),
   ignore_region: z.array(z.array(z.number())).default([]),
