@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { CameraItem } from "../api/types";
 import { useSessionStore } from "../store/useSessionStore";
 import { GlassCard } from "../components/ui/GlassCard";
+import { CameraLocationPicker } from "../components/CameraLocationPicker";
 import {
   Camera,
   MapPin,
@@ -91,6 +92,22 @@ export const CamerasView: React.FC = () => {
     setSelectedIndex(null);
     setHoverIndex(null);
     setSaveStatus(null);
+  };
+
+  const handleSaveLocation = async (lat: number | null, lng: number | null, heading: number | null) => {
+    if (!selectedCam) return;
+    const updated = await api.updateCamera(selectedCam.id, {
+      name: selectedCam.name,
+      source: selectedCam.source,
+      lat,
+      lng,
+      heading,
+      notes: selectedCam.notes,
+      settings_profile: selectedCam.settings_profile,
+      ignore_region: selectedCam.ignore_region,
+    });
+    setSelectedCam(updated);
+    setCameras((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   };
 
   // Find nearest vertex index within hit radius
@@ -646,56 +663,23 @@ export const CamerasView: React.FC = () => {
             )}
           </GlassCard>
 
-          {/* CCTV Placement Map */}
-          <GlassCard className="p-4 space-y-3" glowColor="cyan">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-emerald-400" />
-                <span>Stationary CCTV Network Placement Map</span>
-              </h3>
-              <span className="text-[10px] font-mono text-slate-500">Offline Coordinate Grid</span>
-            </div>
+          {/* Stationary CCTV Placement & Heading Map */}
+          {selectedCam && (
+            <GlassCard className="p-4 space-y-3" glowColor="cyan">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-emerald-400" />
+                  <span>Geospatial Placement & Heading ({selectedCam.name})</span>
+                </h3>
+                <span className="text-[10px] font-mono text-cyan-400">Interactive Pinning</span>
+              </div>
 
-            <div className="h-40 bg-slate-950 rounded-xl border border-slate-800 relative overflow-hidden flex items-center justify-center p-4">
-              {cameras.map((c, i) => {
-                const tel = cameraTelemetry[c.id];
-                const isAlert = tel && tel.confirmed_accidents > 0;
-                const left = 20 + (i % 3) * 30;
-                const top = 25 + Math.floor(i / 3) * 45;
-
-                return (
-                  <div
-                    key={c.id}
-                    style={{ left: `${left}%`, top: `${top}%` }}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center cursor-pointer group"
-                    onClick={() => handleSelectCamera(c)}
-                  >
-                    <div
-                      className={`p-1.5 rounded-full shadow-lg ${
-                        isAlert
-                          ? "bg-red-600 text-white animate-bounce"
-                          : selectedCam?.id === c.id
-                          ? "bg-emerald-500 text-white ring-2 ring-emerald-400"
-                          : "bg-slate-700 text-slate-200"
-                      }`}
-                    >
-                      <Camera className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[10px] font-mono bg-slate-900/90 text-slate-300 px-1.5 py-0.5 rounded mt-1 border border-slate-700 whitespace-nowrap">
-                      {c.name}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 flex items-center gap-2">
-              <Info className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-              <span>
-                Coordinates saved as normalized percentages [0.0..1.0] survive video transcoding and camera aspect ratio scaling.
-              </span>
-            </div>
-          </GlassCard>
+              <CameraLocationPicker
+                camera={selectedCam}
+                onSaveLocation={handleSaveLocation}
+              />
+            </GlassCard>
+          )}
         </div>
       </div>
     </div>
