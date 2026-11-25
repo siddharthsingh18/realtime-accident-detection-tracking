@@ -1,5 +1,6 @@
 import React from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 
 interface Props {
@@ -7,7 +8,12 @@ interface Props {
 }
 
 export const ConnectionBadge: React.FC<Props> = ({ device = "auto" }) => {
-  const { status, isMock } = useSessionStore();
+  const { status, isMock } = useSessionStore(
+    useShallow((s) => ({
+      status: s.status,
+      isMock: s.isMock,
+    }))
+  );
 
   let badgeColor = "bg-slate-700/60 text-slate-300 border-slate-600";
   let dotColor = "bg-slate-400";

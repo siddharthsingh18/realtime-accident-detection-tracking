@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { TelemetryMessage } from "../api/types";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 
 interface Props {
   telemetry: TelemetryMessage | null;
@@ -25,7 +26,15 @@ export const VectorOverlayCanvas: React.FC<Props> = ({
     showMotionTrails,
     showGhostOutlines,
     showSpeedVectors,
-  } = useSessionStore();
+  } = useSessionStore(
+    useShallow((s) => ({
+      showZoneBoxes: s.showZoneBoxes,
+      showVehicleBoxes: s.showVehicleBoxes,
+      showMotionTrails: s.showMotionTrails,
+      showGhostOutlines: s.showGhostOutlines,
+      showSpeedVectors: s.showSpeedVectors,
+    }))
+  );
 
   useEffect(() => {
     let animId: number;

@@ -1,9 +1,15 @@
 import React, { useState, useRef } from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { UploadCloud, FileVideo, X, AlertCircle } from "lucide-react";
 
 export const UploadDropzone: React.FC = () => {
-  const { uploadedFile, setUploadedFile } = useSessionStore();
+  const { uploadedFile, setUploadedFile } = useSessionStore(
+    useShallow((s) => ({
+      uploadedFile: s.uploadedFile,
+      setUploadedFile: s.setUploadedFile,
+    }))
+  );
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);

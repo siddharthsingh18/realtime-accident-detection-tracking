@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { Camera, AlertCircle } from "lucide-react";
 
 interface Props {
@@ -12,7 +13,12 @@ export const WebcamPanel: React.FC<Props> = () => {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const { status, sessionId } = useSessionStore();
+  const { status, sessionId } = useSessionStore(
+    useShallow((s) => ({
+      status: s.status,
+      sessionId: s.sessionId,
+    }))
+  );
   const webcamWsRef = useRef<WebSocket | null>(null);
   const captureTimerRef = useRef<NodeJS.Timeout | number | null>(null);
 

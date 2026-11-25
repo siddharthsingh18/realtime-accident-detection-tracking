@@ -37,7 +37,7 @@ export const CamerasView: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { cameraTelemetry } = useSessionStore();
+  const cameraTelemetry = useSessionStore((s) => s.cameraTelemetry);
 
   // Convert incoming coordinates (normalized [0..1] or legacy pixels) to canvas pixels
   const parseIncomingPoints = useCallback((raw: any[]): [number, number][] => {

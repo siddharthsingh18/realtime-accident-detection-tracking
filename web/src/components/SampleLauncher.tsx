@@ -1,5 +1,6 @@
 import React from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { Film, Layers, Play } from "lucide-react";
 
 interface Props {
@@ -7,7 +8,13 @@ interface Props {
 }
 
 export const SampleLauncher: React.FC<Props> = ({ onStart }) => {
-  const { source, setSource, status } = useSessionStore();
+  const { source, setSource, status } = useSessionStore(
+    useShallow((s) => ({
+      source: s.source,
+      setSource: s.setSource,
+      status: s.status,
+    }))
+  );
   const isRunning = status === "running" || status === "paused" || status === "connecting";
 
   return (

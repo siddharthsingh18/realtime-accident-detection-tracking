@@ -1,12 +1,18 @@
 import React, { useMemo } from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { AlertCircle, Car, Cpu, Film } from "lucide-react";
 import { FpsSparkline } from "./FpsSparkline";
 import { GlassCard } from "./ui/GlassCard";
 import { RadarStatusRing } from "./ui/RadarStatusRing";
 
 export const KpiCards: React.FC = () => {
-  const { telemetry, fpsHistory } = useSessionStore();
+  const { telemetry, fpsHistory } = useSessionStore(
+    useShallow((s) => ({
+      telemetry: s.telemetry,
+      fpsHistory: s.fpsHistory,
+    }))
+  );
 
   // Smoothed FPS over last 10 received messages
   const smoothedFps = useMemo(() => {

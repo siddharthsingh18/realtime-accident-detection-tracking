@@ -28,7 +28,7 @@ import {
 export const IncidentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addToast } = useSessionStore();
+  const addToast = useSessionStore((s) => s.addToast);
 
   const [incident, setIncident] = useState<IncidentItem | null>(null);
   const [auditRows, setAuditRows] = useState<any[]>([]);

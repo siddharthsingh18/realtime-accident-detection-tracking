@@ -3,13 +3,11 @@ import { useSessionStore } from "../../store/useSessionStore";
 
 export const AmbientMeshBackground: React.FC = () => {
   const effectsQuality = useSessionStore((state) => state.effectsQuality);
-  const telemetry = useSessionStore((state) => state.telemetry);
-  const cameraTelemetry = useSessionStore((state) => state.cameraTelemetry);
-
-  // Check if any camera or active telemetry has an ongoing confirmed accident
-  const hasActiveAccident =
-    (telemetry?.confirmed_accidents ?? 0) > 0 ||
-    Object.values(cameraTelemetry).some((t) => (t?.confirmed_accidents ?? 0) > 0);
+  const hasActiveAccident = useSessionStore(
+    (s) =>
+      (s.telemetry?.confirmed_accidents ?? 0) > 0 ||
+      Object.values(s.cameraTelemetry).some((t) => (t?.confirmed_accidents ?? 0) > 0)
+  );
 
   if (effectsQuality === "off") {
     return hasActiveAccident ? <div className="alert-mode-vignette opacity-80" /> : null;

@@ -37,6 +37,7 @@ import { AmbientMeshBackground } from "./ui/AmbientMeshBackground";
 import { RadarStatusRing } from "./ui/RadarStatusRing";
 import { PerformanceOverlay } from "./dev/PerformanceOverlay";
 import { perfMonitor } from "../utils/perfMonitor";
+import { useShallow } from "zustand/react/shallow";
 import { motion } from "framer-motion";
 
 export const AppShell: React.FC = () => {
@@ -61,7 +62,26 @@ export const AppShell: React.FC = () => {
     activeCameraId,
     effectsQuality,
     setEffectsQuality,
-  } = useSessionStore();
+  } = useSessionStore(
+    useShallow((s) => ({
+      theme: s.theme,
+      setTheme: s.setTheme,
+      density: s.density,
+      isMuted: s.isMuted,
+      toggleMute: s.toggleMute,
+      isMock: s.isMock,
+      setIsMock: s.setIsMock,
+      unreviewedCount: s.unreviewedCount,
+      setUnreviewedCount: s.setUnreviewedCount,
+      setAlertDrawerOpen: s.setAlertDrawerOpen,
+      setCommandPaletteOpen: s.setCommandPaletteOpen,
+      setKeyboardHelpOpen: s.setKeyboardHelpOpen,
+      addToast: s.addToast,
+      activeCameraId: s.activeCameraId,
+      effectsQuality: s.effectsQuality,
+      setEffectsQuality: s.setEffectsQuality,
+    }))
+  );
 
   // Sync theme to root element
   useEffect(() => {

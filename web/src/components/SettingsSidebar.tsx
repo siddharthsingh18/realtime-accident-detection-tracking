@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { Sliders, RotateCcw, ChevronDown, ChevronUp, Cpu, ShieldCheck } from "lucide-react";
 import { PipelineSettings } from "../api/types";
 
@@ -12,7 +13,14 @@ export const SettingsSidebar: React.FC<Props> = ({
   onLiveSettingsChange,
   availableDevice = "auto",
 }) => {
-  const { settings, updateSetting, resetSettings, status } = useSessionStore();
+  const { settings, updateSetting, resetSettings, status } = useSessionStore(
+    useShallow((s) => ({
+      settings: s.settings,
+      updateSetting: s.updateSetting,
+      resetSettings: s.resetSettings,
+      status: s.status,
+    }))
+  );
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isRunning = status === "running" || status === "paused";

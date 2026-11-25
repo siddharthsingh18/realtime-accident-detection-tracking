@@ -1,12 +1,19 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { api } from "../api/client";
 import { IncidentItem } from "../api/types";
 import { Bell, X, CheckCircle, ChevronRight, AlertTriangle, ShieldAlert } from "lucide-react";
 
 export const AlertDrawer: React.FC = () => {
-  const { isAlertDrawerOpen, setAlertDrawerOpen, setUnreviewedCount } = useSessionStore();
+  const { isAlertDrawerOpen, setAlertDrawerOpen, setUnreviewedCount } = useSessionStore(
+    useShallow((s) => ({
+      isAlertDrawerOpen: s.isAlertDrawerOpen,
+      setAlertDrawerOpen: s.setAlertDrawerOpen,
+      setUnreviewedCount: s.setUnreviewedCount,
+    }))
+  );
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();

@@ -3,6 +3,7 @@ import { useSessionStore } from "../store/useSessionStore";
 import { AlertTriangle, PlayCircle, Eye, EyeOff } from "lucide-react";
 import { VideoHudOverlay } from "./ui/VideoHudOverlay";
 import { perfMonitor } from "../utils/perfMonitor";
+import { useShallow } from "zustand/react/shallow";
 
 interface Props {
   latestFrame: Blob | null;
@@ -12,8 +13,17 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
   perfMonitor.recordVideoStageRender();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { status, telemetry, showClientBboxOverlay, toggleBboxOverlay, error } =
-    useSessionStore();
+  const { status, hasAlert, fps, zones, showClientBboxOverlay, error, toggleBboxOverlay } = useSessionStore(
+    useShallow((s) => ({
+      status: s.status,
+      hasAlert: (s.telemetry?.confirmed_accidents ?? 0) > 0,
+      fps: s.telemetry?.fps,
+      zones: s.showClientBboxOverlay ? s.telemetry?.zones : undefined,
+      showClientBboxOverlay: s.showClientBboxOverlay,
+      error: s.error,
+      toggleBboxOverlay: s.toggleBboxOverlay,
+    }))
+  );
 
   const currentBitmapRef = useRef<ImageBitmap | null>(null);
 
@@ -53,8 +63,8 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
           ctx.drawImage(bitmap, 0, 0);
 
           // Optional Client-side Bounding Box Overlay (defaults to off)
-          if (showClientBboxOverlay && telemetry?.zones) {
-            telemetry.zones.forEach((zone) => {
+          if (showClientBboxOverlay && zones) {
+            zones.forEach((zone) => {
               const [x1, y1, x2, y2] = zone.bbox;
               const w = x2 - x1;
               const h = y2 - y1;
@@ -97,7 +107,7 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
     return () => {
       isCancelled = true;
     };
-  }, [latestFrame, showClientBboxOverlay, telemetry]);
+  }, [latestFrame, showClientBboxOverlay, zones]);
 
   // Cleanup bitmap on unmount
   useEffect(() => {
@@ -115,15 +125,15 @@ export const VideoStage: React.FC<Props> = ({ latestFrame }) => {
     <div
       ref={containerRef}
       className={`relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden border transition-all duration-500 shadow-2xl flex items-center justify-center group ${
-        (telemetry?.confirmed_accidents ?? 0) > 0
+        hasAlert
           ? "border-rose-500/80 shadow-[0_0_35px_rgba(239,68,68,0.45)] alert-border-pulse"
           : "border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
       }`}
     >
       {/* Cinematic HUD Corner Brackets & Markings */}
       <VideoHudOverlay
-        isAlert={(telemetry?.confirmed_accidents ?? 0) > 0}
-        fps={telemetry?.fps}
+        isAlert={hasAlert}
+        fps={fps}
       />
 
       {/* Video Canvas */}

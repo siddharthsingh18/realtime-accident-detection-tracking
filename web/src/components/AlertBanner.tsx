@@ -1,15 +1,22 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { AlertOctagon, ShieldCheck } from "lucide-react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 
 export const AlertBanner: React.FC = () => {
-  const { telemetry, status } = useSessionStore();
-  const confirmedAccidents = telemetry?.confirmed_accidents ?? 0;
-  const isAlert = confirmedAccidents > 0;
+  const { isAlert, confirmedAccidents, status, zones } = useSessionStore(
+    useShallow((s) => ({
+      isAlert: (s.telemetry?.confirmed_accidents ?? 0) > 0,
+      confirmedAccidents: s.telemetry?.confirmed_accidents ?? 0,
+      status: s.status,
+      zones: s.telemetry?.zones,
+    }))
+  );
   const isActiveSession = status === "running" || status === "paused";
 
-  const activeZones = (telemetry?.zones || []).filter(
-    (z) => z.status === "ACTIVE" || z.status === "MAINTAINED"
+  const activeZones = useMemo(
+    () => (zones || []).filter((z) => z.status === "ACTIVE" || z.status === "MAINTAINED"),
+    [zones]
   );
 
   return (

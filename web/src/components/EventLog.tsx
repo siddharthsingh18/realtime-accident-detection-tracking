@@ -3,7 +3,8 @@ import { useSessionStore } from "../store/useSessionStore";
 import { Download, Trash2, ListChecks, CheckCircle, AlertOctagon } from "lucide-react";
 
 export const EventLog: React.FC = () => {
-  const { events, clearEvents } = useSessionStore();
+  const events = useSessionStore((s) => s.events);
+  const clearEvents = useSessionStore((s) => s.clearEvents);
 
   const exportCsv = () => {
     if (events.length === 0) return;

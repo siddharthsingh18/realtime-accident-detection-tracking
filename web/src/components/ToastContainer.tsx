@@ -1,10 +1,16 @@
 import React from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { useNavigate } from "react-router-dom";
 import { AlertOctagon, CheckCircle2, RotateCcw, X } from "lucide-react";
 
 export const ToastContainer: React.FC = () => {
-  const { toasts, removeToast } = useSessionStore();
+  const { toasts, removeToast } = useSessionStore(
+    useShallow((s) => ({
+      toasts: s.toasts,
+      removeToast: s.removeToast,
+    }))
+  );
   const navigate = useNavigate();
 
   if (toasts.length === 0) return null;

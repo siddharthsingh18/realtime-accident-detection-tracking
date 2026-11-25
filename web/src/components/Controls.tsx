@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from "react";
 import { Play, Square, Pause, RotateCcw } from "lucide-react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { GlowButton } from "./ui/GlowButton";
 
 interface Props {
@@ -18,7 +19,12 @@ export const Controls: React.FC<Props> = ({
   onResume,
   onReset,
 }) => {
-  const { status, source } = useSessionStore();
+  const { status, source } = useSessionStore(
+    useShallow((s) => ({
+      status: s.status,
+      source: s.source,
+    }))
+  );
 
   const isRunning = status === "running";
   const isPaused = status === "paused";

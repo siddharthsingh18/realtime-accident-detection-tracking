@@ -15,7 +15,7 @@ import {
 
 export const ReviewQueue: React.FC = () => {
   const navigate = useNavigate();
-  const { addToast } = useSessionStore();
+  const addToast = useSessionStore((s) => s.addToast);
 
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
   const [total, setTotal] = useState(0);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { StreamWebSocket } from "../api/websocket";
 import { api } from "../api/client";
 import { CameraItem, TelemetryMessage } from "../api/types";
@@ -30,7 +31,16 @@ export const LiveWall: React.FC = () => {
     setActiveCameraId,
     cameraTelemetry,
     isMock,
-  } = useSessionStore();
+  } = useSessionStore(
+    useShallow((s) => ({
+      wallLayout: s.wallLayout,
+      setWallLayout: s.setWallLayout,
+      tileCameras: s.tileCameras,
+      setActiveCameraId: s.setActiveCameraId,
+      cameraTelemetry: s.cameraTelemetry,
+      isMock: s.isMock,
+    }))
+  );
 
   const [cameras, setCameras] = useState<CameraItem[]>([]);
   const [alertsFirst, setAlertsFirst] = useState(true);
@@ -261,7 +271,8 @@ const CameraTile: React.FC<TileProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [latestFrame, setLatestFrame] = useState<Blob | null>(null);
-  const { setCameraTelemetry, setCameraStatus } = useSessionStore();
+  const setCameraTelemetry = useSessionStore((s) => s.setCameraTelemetry);
+  const setCameraStatus = useSessionStore((s) => s.setCameraStatus);
 
   // Run mock or real loop for this tile
   useEffect(() => {

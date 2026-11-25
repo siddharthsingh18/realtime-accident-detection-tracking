@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { api } from "../api/client";
 import { StreamWebSocket } from "../api/websocket";
 import { ClientFrameRingBuffer } from "../utils/frameBuffer";
@@ -53,7 +54,28 @@ export const FocusView: React.FC = () => {
     showMotionTrails,
     showGhostOutlines,
     showSpeedVectors,
-  } = useSessionStore();
+  } = useSessionStore(
+    useShallow((s) => ({
+      status: s.status,
+      source: s.source,
+      uploadedFile: s.uploadedFile,
+      settings: s.settings,
+      isMock: s.isMock,
+      telemetry: s.telemetry,
+      error: s.error,
+      setStatus: s.setStatus,
+      setSessionId: s.setSessionId,
+      setTelemetry: s.setTelemetry,
+      setError: s.setError,
+      setActiveCameraId: s.setActiveCameraId,
+      toggleOverlay: s.toggleOverlay,
+      showZoneBoxes: s.showZoneBoxes,
+      showVehicleBoxes: s.showVehicleBoxes,
+      showMotionTrails: s.showMotionTrails,
+      showGhostOutlines: s.showGhostOutlines,
+      showSpeedVectors: s.showSpeedVectors,
+    }))
+  );
 
   const [activeTab, setActiveTab] = useState<"telemetry" | "zones" | "tuning" | "events">("telemetry");
   const [latestFrame, setLatestFrame] = useState<Blob | null>(null);

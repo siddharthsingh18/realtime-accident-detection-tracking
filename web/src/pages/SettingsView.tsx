@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 
 export const SettingsView: React.FC = () => {
-  const { effectsQuality, setEffectsQuality } = useSessionStore();
+  const effectsQuality = useSessionStore((s) => s.effectsQuality);
+  const setEffectsQuality = useSessionStore((s) => s.setEffectsQuality);
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [retentionDays, setRetentionDays] = useState(30);
   const [maxStorageGB, setMaxStorageGB] = useState(5.0);

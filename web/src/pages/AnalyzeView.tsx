@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { api } from "../api/client";
 import { StreamWebSocket } from "../api/websocket";
 import { MOCK_TELEMETRY_SEQUENCE, createMockFrameBlob } from "../mock/mockData";
@@ -35,7 +36,22 @@ export const AnalyzeView: React.FC = () => {
     setError,
     setIsMock,
     resetSession,
-  } = useSessionStore();
+  } = useSessionStore(
+    useShallow((s) => ({
+      status: s.status,
+      source: s.source,
+      uploadedFile: s.uploadedFile,
+      settings: s.settings,
+      isMock: s.isMock,
+      telemetry: s.telemetry,
+      setStatus: s.setStatus,
+      setSessionId: s.setSessionId,
+      setTelemetry: s.setTelemetry,
+      setError: s.setError,
+      setIsMock: s.setIsMock,
+      resetSession: s.resetSession,
+    }))
+  );
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [latestFrame, setLatestFrame] = useState<Blob | null>(null);

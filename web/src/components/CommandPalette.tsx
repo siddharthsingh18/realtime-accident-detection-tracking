@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { Search, Monitor, AlertCircle, BarChart3, GitCompare, Camera, Settings, Eye, Volume2, VolumeX, Moon, Sun, Film, Sparkles, ClipboardCheck } from "lucide-react";
 
 export const CommandPalette: React.FC = () => {
@@ -15,7 +16,20 @@ export const CommandPalette: React.FC = () => {
     effectsQuality,
     setEffectsQuality,
     setActiveCameraId,
-  } = useSessionStore();
+  } = useSessionStore(
+    useShallow((s) => ({
+      isCommandPaletteOpen: s.isCommandPaletteOpen,
+      setCommandPaletteOpen: s.setCommandPaletteOpen,
+      toggleOverlay: s.toggleOverlay,
+      toggleMute: s.toggleMute,
+      isMuted: s.isMuted,
+      theme: s.theme,
+      setTheme: s.setTheme,
+      effectsQuality: s.effectsQuality,
+      setEffectsQuality: s.setEffectsQuality,
+      setActiveCameraId: s.setActiveCameraId,
+    }))
+  );
 
   const navigate = useNavigate();
   const [query, setQuery] = useState("");

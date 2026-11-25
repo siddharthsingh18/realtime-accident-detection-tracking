@@ -18,6 +18,7 @@ import { SettingsSidebar } from "../components/SettingsSidebar";
 import { EventLog } from "../components/EventLog";
 import { VideoStage } from "../components/VideoStage";
 import { Moon, Sun, Shield, Info, Sparkles } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 
 export const Dashboard: React.FC = () => {
   const {
@@ -34,7 +35,23 @@ export const Dashboard: React.FC = () => {
     setIsMock,
     toggleTheme,
     resetSession,
-  } = useSessionStore();
+  } = useSessionStore(
+    useShallow((s) => ({
+      status: s.status,
+      source: s.source,
+      uploadedFile: s.uploadedFile,
+      settings: s.settings,
+      isMock: s.isMock,
+      theme: s.theme,
+      setStatus: s.setStatus,
+      setSessionId: s.setSessionId,
+      setTelemetry: s.setTelemetry,
+      setError: s.setError,
+      setIsMock: s.setIsMock,
+      toggleTheme: s.toggleTheme,
+      resetSession: s.resetSession,
+    }))
+  );
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [latestFrame, setLatestFrame] = useState<Blob | null>(null);

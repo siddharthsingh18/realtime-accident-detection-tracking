@@ -1,9 +1,15 @@
 import React, { useEffect } from "react";
 import { useSessionStore } from "../store/useSessionStore";
+import { useShallow } from "zustand/react/shallow";
 import { Keyboard, X } from "lucide-react";
 
 export const KeyboardHelpModal: React.FC = () => {
-  const { isKeyboardHelpOpen, setKeyboardHelpOpen } = useSessionStore();
+  const { isKeyboardHelpOpen, setKeyboardHelpOpen } = useSessionStore(
+    useShallow((s) => ({
+      isKeyboardHelpOpen: s.isKeyboardHelpOpen,
+      setKeyboardHelpOpen: s.setKeyboardHelpOpen,
+    }))
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
