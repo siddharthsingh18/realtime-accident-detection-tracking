@@ -14,6 +14,8 @@ import {
   Cpu,
   ChevronRight,
   AlertOctagon,
+  Play,
+  Pause,
 } from "lucide-react";
 
 export const LiveWall: React.FC = () => {
@@ -30,6 +32,12 @@ export const LiveWall: React.FC = () => {
   const [cameras, setCameras] = useState<CameraItem[]>([]);
   const [alertsFirst, setAlertsFirst] = useState(true);
   const [selectedTileIndex, setSelectedTileIndex] = useState<number>(0);
+  const [maxActiveFeeds, setMaxActiveFeeds] = useState<number>(2);
+  const [pausedFeeds, setPausedFeeds] = useState<Record<string, boolean>>({});
+
+  const togglePauseFeed = (camId: string) => {
+    setPausedFeeds((prev) => ({ ...prev, [camId]: !prev[camId] }));
+  };
 
   // Load cameras list
   useEffect(() => {
@@ -106,6 +114,25 @@ export const LiveWall: React.FC = () => {
             <span>Alerts First: {alertsFirst ? "ON" : "OFF"}</span>
           </button>
 
+          {/* Max Active Feeds Limit Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
+            <span className="text-[11px] text-slate-400 font-semibold px-1">Max Active:</span>
+            {[1, 2, 4].map((num) => (
+              <button
+                key={num}
+                onClick={() => setMaxActiveFeeds(num)}
+                className={`px-2 py-0.5 rounded font-bold text-xs transition ${
+                  maxActiveFeeds === num
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+                title={`Limit to ${num} active concurrent stream${num > 1 ? "s" : ""}`}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+
           {/* Layout Grid Buttons */}
           <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg border border-slate-700">
             <button
@@ -149,32 +176,48 @@ export const LiveWall: React.FC = () => {
             : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4"
         }`}
       >
-        {displayedCameras.map((camId, idx) => {
-          const cam = cameras.find((c) => c.id === camId);
-          const name = cam?.name || `Camera ${idx + 1} (${camId})`;
-          const telemetry = cameraTelemetry[camId] || null;
-          const isConfirmedAlert = telemetry && telemetry.confirmed_accidents > 0;
-          const isMaintained = telemetry && telemetry.zones?.some((z) => z.status === "MAINTAINED");
-          const isSelected = idx === selectedTileIndex;
+        {(() => {
+          let activeRunningCount = 0;
+          return displayedCameras.map((camId, idx) => {
+            const cam = cameras.find((c) => c.id === camId);
+            const name = cam?.name || `Camera ${idx + 1} (${camId})`;
+            const telemetry = cameraTelemetry[camId] || null;
+            const isConfirmedAlert = telemetry && telemetry.confirmed_accidents > 0;
+            const isMaintained = telemetry && telemetry.zones?.some((z) => z.status === "MAINTAINED");
+            const isSelected = idx === selectedTileIndex;
 
-          return (
-            <CameraTile
-              key={camId}
-              cameraId={camId}
-              name={name}
-              isSelected={isSelected}
-              isConfirmedAlert={isConfirmedAlert}
-              isMaintained={isMaintained}
-              telemetry={telemetry}
-              isMock={isMock}
-              onClick={() => setSelectedTileIndex(idx)}
-              onDoubleClick={() => {
-                setActiveCameraId(camId);
-                navigate(`/camera/${camId}`);
-              }}
-            />
-          );
-        })}
+            const explicitlyPaused = Boolean(pausedFeeds[camId]);
+            let isPaused = explicitlyPaused;
+            if (!explicitlyPaused) {
+              if (activeRunningCount < maxActiveFeeds) {
+                activeRunningCount++;
+                isPaused = false;
+              } else {
+                isPaused = true;
+              }
+            }
+
+            return (
+              <CameraTile
+                key={camId}
+                cameraId={camId}
+                name={name}
+                isSelected={isSelected}
+                isConfirmedAlert={isConfirmedAlert}
+                isMaintained={isMaintained}
+                telemetry={telemetry}
+                isMock={isMock}
+                isPaused={isPaused}
+                onTogglePause={() => togglePauseFeed(camId)}
+                onClick={() => setSelectedTileIndex(idx)}
+                onDoubleClick={() => {
+                  setActiveCameraId(camId);
+                  navigate(`/camera/${camId}`);
+                }}
+              />
+            );
+          });
+        })()}
       </div>
     </div>
   );
@@ -189,6 +232,8 @@ interface TileProps {
   isMaintained: boolean;
   telemetry: TelemetryMessage | null;
   isMock: boolean;
+  isPaused: boolean;
+  onTogglePause: () => void;
   onClick: () => void;
   onDoubleClick: () => void;
 }
@@ -201,6 +246,8 @@ const CameraTile: React.FC<TileProps> = ({
   isMaintained,
   telemetry,
   isMock,
+  isPaused,
+  onTogglePause,
   onClick,
   onDoubleClick,
 }) => {
@@ -210,6 +257,11 @@ const CameraTile: React.FC<TileProps> = ({
 
   // Run mock or real loop for this tile
   useEffect(() => {
+    if (isPaused) {
+      setCameraStatus(cameraId, "paused");
+      return;
+    }
+
     let ws: StreamWebSocket | null = null;
     let mockInterval: any = null;
 
@@ -248,7 +300,7 @@ const CameraTile: React.FC<TileProps> = ({
       if (ws) ws.close();
       if (mockInterval) clearInterval(mockInterval);
     };
-  }, [cameraId, name, isMock, setCameraTelemetry, setCameraStatus]);
+  }, [cameraId, name, isMock, isPaused, setCameraTelemetry, setCameraStatus]);
 
   // Draw bitmap on canvas
   useEffect(() => {
@@ -309,6 +361,23 @@ const CameraTile: React.FC<TileProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Pause / Resume Feed Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePause();
+            }}
+            className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition ${
+              isPaused
+                ? "bg-amber-950/80 text-amber-300 border border-amber-600 hover:bg-amber-900"
+                : "bg-slate-800 text-slate-300 border border-slate-700 hover:text-white"
+            }`}
+            title={isPaused ? "Resume video stream" : "Pause feed to reduce concurrency and CPU"}
+          >
+            {isPaused ? <Play className="w-2.5 h-2.5 fill-current" /> : <Pause className="w-2.5 h-2.5" />}
+            <span>{isPaused ? "Resume" : "Pause"}</span>
+          </button>
+
           {isConfirmedAlert && (
             <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-red-950 text-red-300 border border-red-800 flex items-center gap-1">
               <AlertOctagon className="w-3 h-3 text-red-400" />
@@ -324,9 +393,26 @@ const CameraTile: React.FC<TileProps> = ({
       {/* Video Feed Stage */}
       <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
         <canvas ref={canvasRef} className="w-full h-full object-contain" />
-        {!latestFrame && (
+        {!latestFrame && !isPaused && (
           <div className="text-[11px] text-slate-500 font-mono">
             Connecting stream...
+          </div>
+        )}
+
+        {/* Paused Feed Standby Overlay */}
+        {isPaused && (
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-10">
+            <Pause className="w-6 h-6 text-amber-400" />
+            <span className="text-xs font-semibold text-slate-300">Feed Standby / Paused</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePause();
+              }}
+              className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-black font-bold text-xs shadow-md transition cursor-pointer"
+            >
+              Resume Feed
+            </button>
           </div>
         )}
 

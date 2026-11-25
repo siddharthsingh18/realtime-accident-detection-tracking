@@ -25,7 +25,11 @@ DEMO_CONFIGS = {
 }
 
 
+_demo_cache = {}
+
 def _get_demo_metadata(name: str, config: dict) -> DemoItem:
+    if name in _demo_cache:
+        return _demo_cache[name]
     h264_path = config["h264_path"]
     legacy_path = config["legacy_path"]
 
@@ -55,7 +59,7 @@ def _get_demo_metadata(name: str, config: dict) -> DemoItem:
             cap.release()
 
     demo_url = f"/api/demos/{name}/video"
-    return DemoItem(
+    item = DemoItem(
         name=name,
         title=config["title"],
         description=config["description"],
@@ -67,6 +71,8 @@ def _get_demo_metadata(name: str, config: dict) -> DemoItem:
         url=demo_url,
         video_url=demo_url,
     )
+    _demo_cache[name] = item
+    return item
 
 
 @router.get("", response_model=List[DemoItem])

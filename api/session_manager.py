@@ -1,6 +1,8 @@
 import os
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "threads;1"
 import uuid
 import logging
+import threading
 from typing import Dict, Optional, List
 import cv2
 from fastapi import HTTPException
@@ -43,6 +45,7 @@ class SessionState:
         self.is_stopped: bool = False
         self.queue_depth: int = 0
         self.dropped_frames: int = 0
+        self.lock = threading.Lock()
 
         # Load camera ignore region if configured
         ignore_region = []
@@ -91,15 +94,26 @@ class SessionState:
             ignore_region=ignore_region,
         )
 
+    def read_frame(self):
+        with self.lock:
+            if self.is_stopped or self.cap is None or not self.cap.isOpened():
+                return False, None
+            try:
+                return self.cap.read()
+            except Exception as e:
+                logger.warning(f"Error reading frame for session {self.session_id}: {e}")
+                return False, None
+
     def cleanup(self):
         self.is_stopped = True
         self.status = "finished"
-        if self.cap is not None:
-            try:
-                self.cap.release()
-            except Exception as e:
-                logger.warning(f"Error releasing video capture for session {self.session_id}: {e}")
-            self.cap = None
+        with self.lock:
+            if self.cap is not None:
+                try:
+                    self.cap.release()
+                except Exception as e:
+                    logger.warning(f"Error releasing video capture for session {self.session_id}: {e}")
+                self.cap = None
 
         if self.temp_file_path and os.path.exists(self.temp_file_path):
             try:

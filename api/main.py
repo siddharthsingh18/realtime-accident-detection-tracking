@@ -1,4 +1,5 @@
 import os
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "threads;1"
 import sys
 import json
 import time
@@ -398,7 +399,7 @@ async def websocket_stream_endpoint(websocket: WebSocket, session_id: str):
                 continue
 
             loop = asyncio.get_running_loop()
-            ret, frame = await loop.run_in_executor(None, session.cap.read)
+            ret, frame = await loop.run_in_executor(None, session.read_frame)
             if not ret or frame is None:
                 all_final_zones = session.processor.persistence_mgr.all_zones()
                 final_zones = [

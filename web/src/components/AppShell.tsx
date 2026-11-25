@@ -25,6 +25,7 @@ import {
   HelpCircle,
   Clock,
   Cpu,
+  Film,
 } from "lucide-react";
 
 import { AlertDrawer } from "./AlertDrawer";
@@ -123,6 +124,7 @@ export const AppShell: React.FC = () => {
 
   const navItems = [
     { to: "/", label: t("nav.live_wall"), icon: <Monitor className="w-4 h-4" /> },
+    { to: "/analyze", label: t("nav.analyze", "Analyze (I/O)"), icon: <Film className="w-4 h-4" /> },
     { to: `/camera/${activeCameraId}`, label: t("nav.focus_view"), icon: <Eye className="w-4 h-4" /> },
     { to: "/incidents", label: t("nav.review_queue"), icon: <AlertCircle className="w-4 h-4" /> },
     { to: "/analytics", label: t("nav.analytics"), icon: <BarChart3 className="w-4 h-4" /> },

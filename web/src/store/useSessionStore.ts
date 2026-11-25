@@ -124,7 +124,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   isMock: false,
 
   activeCameraId: "cam_01",
-  wallLayout: "4",
+  wallLayout: "2",
   tileCameras: ["cam_01", "cam_02", "cam_03", "cam_04"],
   cameraTelemetry: {},
   cameraStatus: {
