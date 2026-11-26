@@ -1,5 +1,5 @@
 {
-  "latest_run_id": "eval_20261125_181938_pytorch_imgsz640_conf50_hits6",
-  "run_dir": "eval/results/eval_20261125_181938_pytorch_imgsz640_conf50_hits6",
-  "timestamp": "20261125_181938"
+  "latest_run_id": "eval_20261126_162040_pytorch_imgsz640_static_suppress",
+  "run_dir": "eval/results/eval_20261126_162040_pytorch_imgsz640_static_suppress",
+  "timestamp": "20261126_162040"
 }

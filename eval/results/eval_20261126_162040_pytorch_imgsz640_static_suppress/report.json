@@ -1,0 +1,292 @@
+{
+  "run_id": "eval_20261126_162040_pytorch_imgsz640_static_suppress",
+  "timestamp_utc": "20261126_162040",
+  "backend": "pytorch",
+  "is_smoke_test": true,
+  "config": {
+    "accident_conf": 0.4,
+    "vehicle_conf": 0.35,
+    "containment_threshold": 0.5,
+    "iou_threshold": 0.3,
+    "persistence_seconds": 0.5,
+    "confirm_seconds": 0.17,
+    "tentative_grace_seconds": 0.07,
+    "use_collision_heuristic": true,
+    "device": "auto",
+    "inference_backend": "pytorch",
+    "imgsz": 640,
+    "sahi": {
+      "enabled": false,
+      "slice_size": 640,
+      "overlap_ratio": 0.2,
+      "merge_iou_threshold": 0.5,
+      "slice_every_n_frames": 3
+    },
+    "with_reid": false,
+    "deceleration_threshold_kmh": 35.0,
+    "deceleration_threshold_px": 120.0,
+    "save_output": false,
+    "kinematic_gate": {
+      "enabled": false,
+      "mode": "require",
+      "min_ttc_before_contact_s": 2.0,
+      "min_decel_mps2": 4.0,
+      "min_relative_speed_drop_mps": 3.0,
+      "lookback_window_s": 1.0,
+      "stationary_speed_mps": 1.2
+    },
+    "static_filter": {
+      "enabled": true,
+      "mode": "suppress",
+      "min_observed_s": 3.0,
+      "max_speed_threshold": 3.0,
+      "max_speed_threshold_px_s": 12.0,
+      "require_no_prior_contact": true
+    }
+  },
+  "summary_all": {
+    "summary": {
+      "total_clips": 2,
+      "total_crashes": 1,
+      "total_normals": 1,
+      "total_duration_sec": 10.0,
+      "normal_duration_sec": 4.0,
+      "normal_duration_hours": 0.001
+    },
+    "counts": {
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "TN": 1
+    },
+    "rates": {
+      "precision": 1.0,
+      "precision_ci_95": [
+        0.2065,
+        1.0
+      ],
+      "recall": 1.0,
+      "recall_ci_95": [
+        0.2065,
+        1.0
+      ],
+      "f1_score": 1.0,
+      "accuracy": 1.0,
+      "accuracy_ci_95": [
+        0.3424,
+        1.0
+      ],
+      "false_alarms_per_hour": 0.0
+    },
+    "delay": {
+      "sample_count": 1,
+      "median_sec": 0.0,
+      "p90_sec": 0.0,
+      "min_sec": 0.0,
+      "max_sec": 0.0,
+      "max_delay_threshold_sec": 5.0
+    },
+    "annotated_clips": [
+      {
+        "filename": "sample1_crash_test.mp4",
+        "split": "test",
+        "label": "crash",
+        "crash_onset_sec": 1.6,
+        "condition_tags": [
+          "day",
+          "cctv",
+          "distant"
+        ],
+        "duration_sec": 6.0,
+        "fired": true,
+        "first_alert_sec": 1.6,
+        "first_alert_frame_idx": 48,
+        "alert_count": 3,
+        "max_conf": 0.9704,
+        "processing_time_sec": 12.286,
+        "processing_fps": 14.7,
+        "eval_outcome": "TP",
+        "detection_delay_sec": 0.0,
+        "eval_reason": "True positive: hit at 1.60s (0.00s after onset)."
+      },
+      {
+        "filename": "sample2_normal_pre.mp4",
+        "split": "test",
+        "label": "normal",
+        "crash_onset_sec": null,
+        "condition_tags": [
+          "day",
+          "cctv",
+          "dense"
+        ],
+        "duration_sec": 4.0,
+        "fired": false,
+        "first_alert_sec": null,
+        "first_alert_frame_idx": null,
+        "alert_count": 0,
+        "max_conf": 0.98,
+        "processing_time_sec": 8.168,
+        "processing_fps": 14.7,
+        "eval_outcome": "TN",
+        "detection_delay_sec": null,
+        "eval_reason": "True negative: no alert fired on normal clip."
+      }
+    ]
+  },
+  "summary_dev": null,
+  "summary_test": {
+    "summary": {
+      "total_clips": 2,
+      "total_crashes": 1,
+      "total_normals": 1,
+      "total_duration_sec": 10.0,
+      "normal_duration_sec": 4.0,
+      "normal_duration_hours": 0.001
+    },
+    "counts": {
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "TN": 1
+    },
+    "rates": {
+      "precision": 1.0,
+      "precision_ci_95": [
+        0.2065,
+        1.0
+      ],
+      "recall": 1.0,
+      "recall_ci_95": [
+        0.2065,
+        1.0
+      ],
+      "f1_score": 1.0,
+      "accuracy": 1.0,
+      "accuracy_ci_95": [
+        0.3424,
+        1.0
+      ],
+      "false_alarms_per_hour": 0.0
+    },
+    "delay": {
+      "sample_count": 1,
+      "median_sec": 0.0,
+      "p90_sec": 0.0,
+      "min_sec": 0.0,
+      "max_sec": 0.0,
+      "max_delay_threshold_sec": 5.0
+    },
+    "annotated_clips": [
+      {
+        "filename": "sample1_crash_test.mp4",
+        "split": "test",
+        "label": "crash",
+        "crash_onset_sec": 1.6,
+        "condition_tags": [
+          "day",
+          "cctv",
+          "distant"
+        ],
+        "duration_sec": 6.0,
+        "fired": true,
+        "first_alert_sec": 1.6,
+        "first_alert_frame_idx": 48,
+        "alert_count": 3,
+        "max_conf": 0.9704,
+        "processing_time_sec": 12.286,
+        "processing_fps": 14.7,
+        "eval_outcome": "TP",
+        "detection_delay_sec": 0.0,
+        "eval_reason": "True positive: hit at 1.60s (0.00s after onset)."
+      },
+      {
+        "filename": "sample2_normal_pre.mp4",
+        "split": "test",
+        "label": "normal",
+        "crash_onset_sec": null,
+        "condition_tags": [
+          "day",
+          "cctv",
+          "dense"
+        ],
+        "duration_sec": 4.0,
+        "fired": false,
+        "first_alert_sec": null,
+        "first_alert_frame_idx": null,
+        "alert_count": 0,
+        "max_conf": 0.98,
+        "processing_time_sec": 8.168,
+        "processing_fps": 14.7,
+        "eval_outcome": "TN",
+        "detection_delay_sec": null,
+        "eval_reason": "True negative: no alert fired on normal clip."
+      }
+    ]
+  },
+  "condition_breakdown": {
+    "cctv": {
+      "clip_count": 2,
+      "crashes": 1,
+      "normals": 1,
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "TN": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_alarms_per_hour": 0.0,
+      "median_delay_sec": 0.0
+    },
+    "day": {
+      "clip_count": 2,
+      "crashes": 1,
+      "normals": 1,
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "TN": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_alarms_per_hour": 0.0,
+      "median_delay_sec": 0.0
+    },
+    "dense": {
+      "clip_count": 1,
+      "crashes": 0,
+      "normals": 1,
+      "TP": 0,
+      "FP": 0,
+      "FN": 0,
+      "TN": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "false_alarms_per_hour": 0.0,
+      "median_delay_sec": null
+    },
+    "distant": {
+      "clip_count": 1,
+      "crashes": 1,
+      "normals": 0,
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "TN": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "false_alarms_per_hour": 0.0,
+      "median_delay_sec": 0.0
+    }
+  },
+  "pr_curve_dev": [],
+  "failure_count": 0,
+  "failures": [],
+  "limitations": [
+    "Dataset sample count (2 clips) provides wide confidence intervals.",
+    "Tuning parameters must strictly take place on 'dev' split only; 'test' split is uncalibrated holdout.",
+    "Clips with early alert (before labeled onset) or >5s late are penalized as misses to protect operator response."
+  ]
+}
