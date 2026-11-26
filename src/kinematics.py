@@ -361,3 +361,217 @@ def evaluate_kinematic_gate(
             return True, 0.0, "No kinematic boost applied (neutral)"
 
     return True, 0.0, "Unknown mode; gate defaulted to pass"
+
+
+@dataclass
+class CandidateMotionProfile:
+    """Motion history and static-wreck analysis profile for an accident candidate."""
+    candidate_bbox: List[float]
+    matched_track_ids: List[int]
+    classification: str                     # "static_wreck", "moving", "crash_involved", or "unknown"
+    is_static: bool                         # True iff candidate strictly qualifies as a static wreck
+    time_observed_s: float                  # Longest observation time (seconds) among matched tracks
+    total_frames_seen: int                  # Max frames observed among matched tracks
+    max_speed_seen: float                   # Peak speed observed (km/h if calibrated, px/s otherwise)
+    is_calibrated: bool                     # Whether metric speed (km/h) was used
+    has_abrupt_deceleration: bool           # Whether any matched track underwent sudden braking / deceleration
+    has_abrupt_heading_change: bool         # Whether any matched track underwent sharp heading deviation
+    has_prior_contact: bool                 # Whether any matched track interacted / collided with another
+    suppress_recommended: bool              # True if filter recommends suppression
+    reason: str                             # Human-readable explanation of the classification
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+def calculate_box_iou(box1: List[float], box2: List[float]) -> float:
+    """Calculate IoU of two bounding boxes [x1, y1, x2, y2]."""
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+    inter_w = max(0.0, x2 - x1)
+    inter_h = max(0.0, y2 - y1)
+    inter_area = inter_w * inter_h
+    if inter_area <= 0.0:
+        return 0.0
+    a1 = max(0.0, box1[2] - box1[0]) * max(0.0, box1[3] - box1[1])
+    a2 = max(0.0, box2[2] - box2[0]) * max(0.0, box2[3] - box2[1])
+    union = a1 + a2 - inter_area
+    return inter_area / union if union > 0.0 else 0.0
+
+
+def calculate_box_containment(inner_box: List[float], outer_box: List[float]) -> float:
+    """Calculate containment ratio: Area(inner ∩ outer) / Area(inner)."""
+    x1 = max(inner_box[0], outer_box[0])
+    y1 = max(inner_box[1], outer_box[1])
+    x2 = min(inner_box[2], outer_box[2])
+    y2 = min(inner_box[3], outer_box[3])
+    inter_w = max(0.0, x2 - x1)
+    inter_h = max(0.0, y2 - y1)
+    inter_area = inter_w * inter_h
+    if inter_area <= 0.0:
+        return 0.0
+    inner_area = max(0.0, inner_box[2] - inner_box[0]) * max(0.0, inner_box[3] - inner_box[1])
+    return inter_area / inner_area if inner_area > 0.0 else 0.0
+
+
+def evaluate_candidate_motion(
+    candidate_bbox: List[float],
+    tracked_vehicles: List[Any],
+    fps: float,
+    min_observed_s: float = 3.0,
+    max_speed_threshold_kmh: float = 3.0,
+    max_speed_threshold_px_s: float = 12.0,
+    require_no_prior_contact: bool = True,
+    containment_threshold: float = 0.30,
+    iou_threshold: float = 0.15,
+    calibrator: Optional[Any] = None,
+) -> CandidateMotionProfile:
+    """
+    Evaluates motion history for an accident candidate against overlapping vehicle tracks.
+
+    Static wreck criteria (ALL must hold to qualify as static_wreck):
+    1. Associated track(s) observed for at least min_observed_s.
+    2. Speed stayed below max_speed_threshold for that whole observation time.
+    3. No abrupt deceleration or sharp heading change was seen.
+    4. If require_no_prior_contact is True, no prior contact/overlap with other tracks occurred.
+
+    Candidates with newly appeared tracks or insufficient history (< min_observed_s)
+    are classified as 'unknown' and NEVER suppressed.
+    """
+    effective_fps = fps if fps > 0 else 30.0
+
+    # 1. Spatial association: find vehicle track(s) overlapping or inside candidate box
+    matched_vehicles = []
+    for v in tracked_vehicles:
+        v_bbox = getattr(v, "bbox", None)
+        if not v_bbox:
+            continue
+        c_in_v = calculate_box_containment(candidate_bbox, v_bbox)
+        v_in_c = calculate_box_containment(v_bbox, candidate_bbox)
+        iou_val = calculate_box_iou(candidate_bbox, v_bbox)
+        if v_in_c >= containment_threshold or c_in_v >= containment_threshold or iou_val >= iou_threshold:
+            matched_vehicles.append(v)
+
+    if not matched_vehicles:
+        return CandidateMotionProfile(
+            candidate_bbox=candidate_bbox,
+            matched_track_ids=[],
+            classification="unknown",
+            is_static=False,
+            time_observed_s=0.0,
+            total_frames_seen=0,
+            max_speed_seen=0.0,
+            is_calibrated=False,
+            has_abrupt_deceleration=False,
+            has_abrupt_heading_change=False,
+            has_prior_contact=False,
+            suppress_recommended=False,
+            reason="No vehicle track associated with candidate box; classification unknown (not suppressed)",
+        )
+
+    matched_ids = [getattr(v, "track_id", -1) for v in matched_vehicles]
+
+    # Check calibration status across matched vehicles
+    is_cal = (
+        calibrator is not None
+        and getattr(calibrator, "is_calibrated", True)
+        and any(getattr(v, "speed_kmh", None) is not None for v in matched_vehicles)
+    )
+
+    # 2. Extract observation duration & lifetime kinematics
+    durations = [getattr(v, "total_frames_seen", 1) / effective_fps for v in matched_vehicles]
+    max_duration_s = max(durations)
+    max_frames_seen = max(getattr(v, "total_frames_seen", 1) for v in matched_vehicles)
+
+    if is_cal:
+        speeds = [getattr(v, "max_speed_kmh", 0.0) or 0.0 for v in matched_vehicles]
+        max_speed = max(speeds)
+        speed_limit = max_speed_threshold_kmh
+        speed_unit = "km/h"
+    else:
+        speeds = [getattr(v, "max_speed_px_s", 0.0) or 0.0 for v in matched_vehicles]
+        max_speed = max(speeds)
+        speed_limit = max_speed_threshold_px_s
+        speed_unit = "px/s"
+
+    any_abrupt_decel = any(getattr(v, "had_abrupt_deceleration", False) for v in matched_vehicles)
+    any_abrupt_heading = any(getattr(v, "had_abrupt_heading_change", False) for v in matched_vehicles)
+    any_prior_contact = any(getattr(v, "had_prior_overlap_or_contact", False) for v in matched_vehicles)
+
+    # 3. Apply evaluation criteria
+    # If the track has not been observed long enough: 'unknown' (never suppressed)
+    if max_duration_s < min_observed_s:
+        return CandidateMotionProfile(
+            candidate_bbox=candidate_bbox,
+            matched_track_ids=matched_ids,
+            classification="unknown",
+            is_static=False,
+            time_observed_s=max_duration_s,
+            total_frames_seen=max_frames_seen,
+            max_speed_seen=max_speed,
+            is_calibrated=is_cal,
+            has_abrupt_deceleration=any_abrupt_decel,
+            has_abrupt_heading_change=any_abrupt_heading,
+            has_prior_contact=any_prior_contact,
+            suppress_recommended=False,
+            reason=f"Track observed for {max_duration_s:.2f}s (< min {min_observed_s:.2f}s); insufficient history, unknown (not suppressed)",
+        )
+
+    # Track has been observed for >= min_observed_s. Check static criteria.
+    speed_ok = max_speed <= speed_limit
+    no_crash_cues = (not any_abrupt_decel) and (not any_abrupt_heading)
+    contact_ok = (not any_prior_contact) if require_no_prior_contact else True
+
+    if speed_ok and no_crash_cues and contact_ok:
+        return CandidateMotionProfile(
+            candidate_bbox=candidate_bbox,
+            matched_track_ids=matched_ids,
+            classification="static_wreck",
+            is_static=True,
+            time_observed_s=max_duration_s,
+            total_frames_seen=max_frames_seen,
+            max_speed_seen=max_speed,
+            is_calibrated=is_cal,
+            has_abrupt_deceleration=any_abrupt_decel,
+            has_abrupt_heading_change=any_abrupt_heading,
+            has_prior_contact=any_prior_contact,
+            suppress_recommended=True,
+            reason=(
+                f"Observed stationary for {max_duration_s:.2f}s "
+                f"(max speed {max_speed:.1f} {speed_unit} <= {speed_limit:.1f} {speed_unit}), "
+                f"no abrupt deceleration, heading change, or prior contact"
+            ),
+        )
+
+    # Not static: identify whether crash-involved or moving
+    if any_abrupt_decel or any_abrupt_heading or any_prior_contact:
+        cues = []
+        if any_abrupt_decel:
+            cues.append("abrupt deceleration")
+        if any_abrupt_heading:
+            cues.append("sharp heading change")
+        if any_prior_contact:
+            cues.append("prior vehicle contact/overlap")
+        reason_str = f"Candidate involves crash kinematics ({', '.join(cues)}); not static"
+        classification = "crash_involved"
+    else:
+        reason_str = f"Track was moving (peak speed {max_speed:.1f} {speed_unit} > threshold {speed_limit:.1f} {speed_unit}); not static"
+        classification = "moving"
+
+    return CandidateMotionProfile(
+        candidate_bbox=candidate_bbox,
+        matched_track_ids=matched_ids,
+        classification=classification,
+        is_static=False,
+        time_observed_s=max_duration_s,
+        total_frames_seen=max_frames_seen,
+        max_speed_seen=max_speed,
+        is_calibrated=is_cal,
+        has_abrupt_deceleration=any_abrupt_decel,
+        has_abrupt_heading_change=any_abrupt_heading,
+        has_prior_contact=any_prior_contact,
+        suppress_recommended=False,
+        reason=reason_str,
+    )

@@ -24,9 +24,11 @@ from .calibration import HomographyCalibrator, load_camera_calibration
 from .kinematics import (
     VehicleKinematicProfile,
     PairKinematicEvidence,
+    CandidateMotionProfile,
     compute_vehicle_kinematics,
     compute_pair_kinematics,
     evaluate_kinematic_gate,
+    evaluate_candidate_motion,
 )
 
 __all__ = [
@@ -47,7 +49,9 @@ __all__ = [
     "load_camera_calibration",
     "VehicleKinematicProfile",
     "PairKinematicEvidence",
+    "CandidateMotionProfile",
     "compute_vehicle_kinematics",
     "compute_pair_kinematics",
     "evaluate_kinematic_gate",
+    "evaluate_candidate_motion",
 ]
