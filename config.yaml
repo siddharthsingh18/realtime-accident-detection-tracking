@@ -65,6 +65,13 @@ accident:
     min_relative_speed_drop_mps: 3.0      # (Untuned placeholder) Minimum relative speed drop in m/s
     lookback_window_s: 1.0                # Kinematic history lookback window in seconds
     stationary_speed_mps: 1.2             # (Untuned placeholder) Speed ceiling (m/s) to classify vehicles as queued / stationary
+  static_filter:
+    enabled: false                        # Optional static-wreck false-alarm filter (default false)
+    mode: "suppress"                       # "suppress" (drops candidate) or "flag_only" (keeps alert, adds note)
+    min_observed_s: 3.0                   # How long object must have been observed (seconds)
+    max_speed_threshold: 3.0              # Ground-plane speed threshold (km/h) for calibrated cameras
+    max_speed_threshold_px_s: 12.0        # Pixel speed fallback threshold (px/s) for uncalibrated cameras
+    require_no_prior_contact: true        # If true, require no prior contact/overlap with other tracks
 
 # Visualization & Output Settings
 visualization:

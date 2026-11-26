@@ -32,6 +32,15 @@ class KinematicGateSettings(BaseModel):
     stationary_speed_mps: float = Field(1.2, ge=0.1, le=5.0, description="Speed threshold to classify vehicle as stationary (placeholder)")
 
 
+class StaticFilterSettings(BaseModel):
+    enabled: bool = Field(False, description="Enable static-wreck / parked vehicle false-alarm filter (default false)")
+    mode: Literal["suppress", "flag_only"] = Field("suppress", description="Filter mode: suppress or flag_only")
+    min_observed_s: float = Field(3.0, ge=0.5, le=30.0, description="Minimum track observation time in seconds")
+    max_speed_threshold: float = Field(3.0, ge=0.1, le=50.0, description="Speed threshold in km/h for calibrated cameras")
+    max_speed_threshold_px_s: float = Field(12.0, ge=1.0, le=100.0, description="Speed threshold in px/s for uncalibrated cameras")
+    require_no_prior_contact: bool = Field(True, description="Require no prior contact or overlap with other tracks to suppress")
+
+
 class PipelineSettings(BaseModel):
     accident_conf: float = Field(0.40, ge=0.05, le=0.95, description="Accident detection confidence cutoff")
     vehicle_conf: float = Field(0.35, ge=0.05, le=0.95, description="Vehicle detection confidence cutoff")
@@ -50,6 +59,7 @@ class PipelineSettings(BaseModel):
     deceleration_threshold_px: float = Field(120.0, ge=10.0, le=500.0, description="Deceleration drop threshold in px/s for uncalibrated cameras")
     save_output: bool = Field(False, description="Persist video output to disk")
     kinematic_gate: KinematicGateSettings = Field(default_factory=KinematicGateSettings, description="Kinematic false-alarm gating settings")
+    static_filter: StaticFilterSettings = Field(default_factory=StaticFilterSettings, description="Static-wreck false-alarm filter settings")
 
 
 class SettingsValidateRequest(BaseModel):

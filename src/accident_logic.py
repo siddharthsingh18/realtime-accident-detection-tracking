@@ -117,6 +117,7 @@ class AccidentZone:
     collision_pair: Optional[Tuple[int, int]] = None
     has_fired_on_confirm: bool = False
     kinematics: Optional[Dict[str, Any]] = None
+    static_filter: Optional[Dict[str, Any]] = None
 
     def smooth_bbox(self, new_bbox: List[float], alpha: float = 0.70):
         """
@@ -218,6 +219,8 @@ class AccidentPersistenceManager:
                     zone.collision_pair = tuple(sorted(matched_det["vehicle_ids"]))
                 if "kinematics" in matched_det and matched_det["kinematics"]:
                     zone.kinematics = matched_det["kinematics"]
+                if "static_filter" in matched_det and matched_det["static_filter"]:
+                    zone.static_filter = matched_det["static_filter"]
 
                 # State Transitions on Hit:
                 if zone.status == "TENTATIVE":
@@ -287,6 +290,7 @@ class AccidentPersistenceManager:
                     collision_pair=col_pair,
                     has_fired_on_confirm=fired,
                     kinematics=det.get("kinematics"),
+                    static_filter=det.get("static_filter"),
                 )
 
                 if is_immediate and self.on_confirm:

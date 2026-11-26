@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+export const StaticFilterSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  mode: z.enum(["suppress", "flag_only"]).default("suppress"),
+  min_observed_s: z.number().default(3.0),
+  max_speed_threshold: z.number().default(3.0),
+  max_speed_threshold_px_s: z.number().default(12.0),
+  require_no_prior_contact: z.boolean().default(true),
+});
+
+export type StaticFilterSettings = z.infer<typeof StaticFilterSettingsSchema>;
+
 // --- Pipeline Settings Schema ---
 export const PipelineSettingsSchema = z.object({
   accident_conf: z.number().min(0.05).max(0.95).default(0.40),
@@ -12,6 +23,7 @@ export const PipelineSettingsSchema = z.object({
   use_collision_heuristic: z.boolean().default(true),
   device: z.enum(["auto", "cpu", "mps", "cuda"]).default("auto"),
   save_output: z.boolean().default(false),
+  static_filter: StaticFilterSettingsSchema.optional(),
 });
 
 export type PipelineSettings = z.infer<typeof PipelineSettingsSchema>;
@@ -131,6 +143,7 @@ export const IncidentItemSchema = z.object({
   model_info: z.record(z.string(), z.any()).default({}),
   kinematics: z.record(z.string(), z.any()).nullable().optional(),
   time_series: z.record(z.string(), z.any()).nullable().optional(),
+  static_filter: z.record(z.string(), z.any()).nullable().optional(),
   is_deleted: z.number().default(0),
 });
 

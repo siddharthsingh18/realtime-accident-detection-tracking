@@ -300,6 +300,32 @@ export const IncidentDetail: React.FC = () => {
         </div>
       </GlassCard>
 
+      {/* Static-Wreck False-Alarm Banner */}
+      {(incident.static_filter?.is_static || incident.verdict_note?.includes("possible static wreck")) && (
+        <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-600/60 text-amber-200 flex items-start gap-3 shadow-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs">
+            <div className="font-bold flex items-center gap-2">
+              <span>Possible Static Wreck / Stationary Vehicle</span>
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-amber-900/60 border border-amber-700/60 text-amber-300">
+                FLAGGED BY STATIC FILTER
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-300/90">
+              {incident.static_filter?.reason || "Observed stationary with no prior movement or collision before detection."}
+            </p>
+            {incident.static_filter && (
+              <div className="flex flex-wrap gap-4 text-[10px] font-mono text-amber-400/80 pt-1">
+                <span>Observed: {incident.static_filter.time_observed_s?.toFixed(1)}s</span>
+                <span>Peak Speed: {incident.static_filter.max_speed_seen?.toFixed(1)} {incident.static_filter.is_calibrated ? "km/h" : "px/s"}</span>
+                <span>Prior Contact: {incident.static_filter.has_prior_contact ? "Yes" : "No"}</span>
+                <span>Abrupt Decel: {incident.static_filter.has_abrupt_deceleration ? "Yes" : "No"}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: Video Player & Snapshot (2 Cols) vs Metadata & Verdict (1 Col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left: Video Player & Snapshot Preview */}

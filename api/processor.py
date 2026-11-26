@@ -280,6 +280,35 @@ class FrameProcessor:
 
         all_candidates = valid_raw + valid_col
 
+        # Optional Static-Wreck False-Alarm Filter
+        static_cfg = getattr(self.settings, "static_filter", None)
+        if static_cfg and getattr(static_cfg, "enabled", False):
+            from src.kinematics import evaluate_candidate_motion
+            filtered_candidates = []
+            for cand in all_candidates:
+                profile = evaluate_candidate_motion(
+                    candidate_bbox=cand["bbox"],
+                    tracked_vehicles=tracked_vehicles,
+                    fps=effective_fps,
+                    min_observed_s=getattr(static_cfg, "min_observed_s", 3.0),
+                    max_speed_threshold_kmh=getattr(static_cfg, "max_speed_threshold", 3.0),
+                    max_speed_threshold_px_s=getattr(static_cfg, "max_speed_threshold_px_s", 12.0),
+                    require_no_prior_contact=getattr(static_cfg, "require_no_prior_contact", True),
+                    calibrator=self.calibrator,
+                )
+                if profile.is_static:
+                    if getattr(static_cfg, "mode", "suppress") == "suppress":
+                        logger.info(f"Static-wreck candidate suppressed: {profile.reason}")
+                        continue
+                    else:  # flag_only mode
+                        cand["static_filter"] = profile.to_dict()
+                        cand["static_wreck_note"] = "possible static wreck"
+                        filtered_candidates.append(cand)
+                else:
+                    cand["static_filter"] = profile.to_dict()
+                    filtered_candidates.append(cand)
+            all_candidates = filtered_candidates
+
         confirmed_accidents = self.persistence_mgr.update(all_candidates)
 
         # Update zone origins
@@ -307,6 +336,7 @@ class FrameProcessor:
         for zid in sorted(newly_confirmed):
             target_zone = next((z for z in confirmed_accidents if z.zone_id == zid), None)
             bbox_coords = tuple(float(c) for c in target_zone.bbox) if target_zone else None
+            details_suffix = " (possible static wreck)" if target_zone and getattr(target_zone, "static_filter", None) and target_zone.static_filter.get("is_static") else ""
             events.append(
                 TelemetryEvent(
                     type="confirmed",
@@ -315,7 +345,7 @@ class FrameProcessor:
                     timestamp_ms=timestamp_ms,
                     camera_id=self.camera_id,
                     bbox=bbox_coords,
-                    details=f"Accident confirmed in Zone #{zid} via {self.zone_origins.get(zid, 'detector')}",
+                    details=f"Accident confirmed in Zone #{zid} via {self.zone_origins.get(zid, 'detector')}{details_suffix}",
                 )
             )
 
@@ -427,6 +457,7 @@ class FrameProcessor:
                         model_info=model_meta,
                         kinematics=target_zone.kinematics,
                         time_series=time_series_data,
+                        static_filter=getattr(target_zone, "static_filter", None),
                     )
 
                     # Schedule clip capture

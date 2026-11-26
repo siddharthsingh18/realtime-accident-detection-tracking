@@ -45,6 +45,7 @@ def init_db():
                 model_info_json TEXT NOT NULL,
                 kinematics_json TEXT,
                 time_series_json TEXT,
+                static_filter_json TEXT,
                 is_deleted INTEGER DEFAULT 0
             );
 
@@ -113,6 +114,11 @@ def init_db():
                 pass
 
             try:
+                cur.execute("ALTER TABLE incidents ADD COLUMN static_filter_json TEXT;")
+            except sqlite3.OperationalError:
+                pass
+
+            try:
                 cur.execute("ALTER TABLE cameras ADD COLUMN heading REAL;")
             except sqlite3.OperationalError:
                 pass
@@ -155,9 +161,15 @@ def insert_incident(
     snapshot_before_path: Optional[str] = None,
     snapshot_after_path: Optional[str] = None,
     time_series: Optional[Dict[str, Any]] = None,
+    static_filter: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     conn = get_connection()
     try:
+        # If static filter flagged as possible static wreck, initialize default verdict_note
+        init_note = None
+        if static_filter and static_filter.get("is_static"):
+            init_note = "possible static wreck"
+
         with conn:
             conn.execute("""
             INSERT OR REPLACE INTO incidents (
@@ -165,8 +177,8 @@ def insert_incident(
                 confirmed_at, peak_conf, bbox_json, involved_ids_json,
                 snapshot_path, snapshot_before_path, snapshot_after_path,
                 clip_path, settings_json, model_info_json,
-                kinematics_json, time_series_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                kinematics_json, time_series_json, static_filter_json, verdict_note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 incident_id,
                 camera_id,
@@ -185,6 +197,8 @@ def insert_incident(
                 json.dumps(model_info),
                 json.dumps(kinematics) if kinematics else None,
                 json.dumps(time_series) if time_series else None,
+                json.dumps(static_filter) if static_filter else None,
+                init_note,
             ))
         return get_incident(incident_id) or {}
     finally:
@@ -566,6 +580,7 @@ def _format_incident_row(row: Dict[str, Any]) -> Dict[str, Any]:
     row["model_info"] = json.loads(row.get("model_info_json") or "{}")
     row["kinematics"] = json.loads(row.get("kinematics_json") or "null") if row.get("kinematics_json") else None
     row["time_series"] = json.loads(row.get("time_series_json") or "null") if row.get("time_series_json") else None
+    row["static_filter"] = json.loads(row.get("static_filter_json") or "null") if row.get("static_filter_json") else None
     return row
 
 
