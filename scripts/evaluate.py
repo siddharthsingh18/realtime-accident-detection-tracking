@@ -183,6 +183,7 @@ def run_evaluation(
     split_filter: str = "all",
     max_frames: int = 0,
     gate_mode: str = "off",
+    static_filter_mode: str = "off",
     imgsz: int = 640,
     sahi: bool = False,
     with_reid: bool = False,
@@ -217,6 +218,8 @@ def run_evaluation(
         tags.append("reid")
     if gate_mode != "off":
         tags.append(f"gate_{gate_mode}")
+    if static_filter_mode != "off":
+        tags.append(f"static_{static_filter_mode}")
     if conf_threshold is not None:
         tags.append(f"conf{int(conf_threshold*100)}")
     if confirm_hits is not None:
@@ -246,6 +249,12 @@ def run_evaluation(
     else:
         settings.kinematic_gate.enabled = True
         settings.kinematic_gate.mode = gate_mode
+
+    if static_filter_mode == "off":
+        settings.static_filter.enabled = False
+    else:
+        settings.static_filter.enabled = True
+        settings.static_filter.mode = static_filter_mode
 
     # Save config snapshot
     config_snapshot_path = os.path.join(run_dir, "config_snapshot.yaml")
@@ -494,6 +503,7 @@ def main():
     parser.add_argument("--eval-dir", default="eval", help="Path to evaluation dataset directory")
     parser.add_argument("--backend", default="pytorch", choices=["pytorch", "onnx"], help="Inference backend runtime")
     parser.add_argument("--gate-mode", default="off", choices=["off", "boost", "require"], help="Kinematic gate mode: off (baseline default), boost, or require")
+    parser.add_argument("--static-filter", default="off", choices=["off", "flag_only", "suppress"], help="Static wreck filter mode: off (default baseline), flag_only, or suppress")
     parser.add_argument("--imgsz", type=int, default=640, choices=[640, 960, 1280], help="Inference resolution image size")
     parser.add_argument("--sahi", action="store_true", help="Enable Sliced Aided Hyper Inference (SAHI)")
     parser.add_argument("--with-reid", action="store_true", help="Enable BoT-SORT ReID appearance embeddings")
@@ -509,6 +519,7 @@ def main():
         split_filter=args.split,
         max_frames=args.max_frames,
         gate_mode=args.gate_mode,
+        static_filter_mode=args.static_filter,
         imgsz=args.imgsz,
         sahi=args.sahi,
         with_reid=args.with_reid,
